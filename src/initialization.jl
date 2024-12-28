@@ -23,7 +23,7 @@ function volume(Φ::Function, c::Ngon)
     end
 
     Φverts = Φrf.(verts)
-    inside_verts = Φverts .≤ 0
+    inside_verts = Φverts .≤ zero(T)
 
     # Quick return for trivial cases
     if all(inside_verts)
