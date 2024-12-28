@@ -12,8 +12,8 @@ using Test
 
         # Parabolic
         q = Quadrangle((0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0))
-        Φp(x, y) = y - (.5 + .25(x / u"1m")^2)u"m"
-        @test GeometricVOF.measure(Φp, q) == (1/2 + 1/12)u"m"
+        Φp(x, y) = y - (.5 + .25(x/u"m")^2)u"m"
+        @test GeometricVOF.measure(Φp, q) == (1/2 + 1/12)u"m^2"
     end
 
 end
