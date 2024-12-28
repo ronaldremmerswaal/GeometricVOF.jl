@@ -1,17 +1,17 @@
-"""
-    V = volume(Φ::Function, c::Ngon)
+import Meshes: measure
 
-Compute the volume V occupied by the reference phase. I.e. compute the volume of the set
+"""
+    M = measure(Φ::Function, c::Ngon)
+
+Compute the measure M occupied by the reference phase. I.e. compute the measure of the set
     𝕊 = {𝐱 ∈ c | Φ(𝐱) ≤ 0},
 or
     𝕊 = {𝐱 ∈ c | Φ(𝐱)}
 if Φ is boolean.
 """
-function volume(Φ::Function, c::Ngon)
-    verts = c.vertices
-
+function Meshes.measure(Φ::Function, c::Ngon)
     Φp(p::Point) = Φ(to(p)...)
-    T = typeof(Φp(verts[1]))
+    T = typeof(Φp(c.vertices[1]))
 
     if T == Bool
         # Here Φ(𝐱) == true ⟺ 𝐱 ∈ 𝕊, and we must use bisection on a shifted function
@@ -22,7 +22,7 @@ function volume(Φ::Function, c::Ngon)
         Φrf = Φp
     end
 
-    Φverts = Φrf.(verts)
+    Φverts = Φrf.(c.vertices)
     inside_verts = Φverts .≤ zero(T)
 
     # Quick return for trivial cases
@@ -32,8 +32,19 @@ function volume(Φ::Function, c::Ngon)
         return 0u"m^2"
     end
 
-    # TODO: compute polygonal approx of reference phase inside c
-    ϕc_approx, edge_is_hf = ngon_approx(Φrf, c, inside_verts, Method)
+    Φc_approx, edge_is_hf = ngon_approx(Φrf, c, inside_verts, Method)
+    M = measure(Φc_approx)
+    for (edx, is_hf) = enumerate(edge_is_hf)
+        if is_hf
+            # We correct the measure M for each edge which is actually a height-function
+            v1 = Φc_approx.vertices[edx]
+            v2 = Φc_approx.vertices[edx == length(edge_is_hf) ? 1 : edx + 1]
+
+            M += hf_measure(Φrf, v1, v2, Method)
+        end
+    end
+
+    return M
 end
 
 function ngon_approx(Φ::Function, c::Ngon, inside_verts::AbstractVector{Bool}, Method)
@@ -66,5 +77,24 @@ function ngon_approx(Φ::Function, c::Ngon, inside_verts::AbstractVector{Bool}, 
         vdx = next_vdx
     end
 
-    return new_verts, edge_is_hf
+    return Ngon(new_verts...), edge_is_hf
+end
+
+function hf_measure(Φ::Function, v1::Point, v2::Point, Method)
+    ηmax = 1    # Length-scale (relative to norm(v1 - v2)) used in find_zero
+
+    𝛕 = v1 - v2
+    𝛈 = Vec(𝛕[2], -𝛕[1]) # Outward pointing normal (in hf direction)
+
+    # The levelset function in local coordinates
+    Φl(τ, η) = Φ(v2 + τ * 𝛕 + η * 𝛈)
+
+    # For each τ, the value of the height-function results from solving a rootfinding problem
+    hf(τ) = find_zero(η -> Φl(τ, η), (-ηmax, ηmax))
+
+    τ_gl, weight_gl = gausslegendre(10) # TODO: precompute?
+    h = norm(𝛕)
+
+    return h^2 * sum(hf.(τ_gl) .* weight_gl)
+
 end

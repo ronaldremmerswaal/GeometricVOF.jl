@@ -1,5 +1,7 @@
 module GeometricVOF
 
+using FastGaussQuadrature
+using LinearAlgebra
 using Meshes
 using Roots
 using Unitful
