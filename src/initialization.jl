@@ -92,9 +92,9 @@ function hf_measure(Φ::Function, v1::Point, v2::Point, Method)
     # For each τ, the value of the height-function results from solving a rootfinding problem
     hf(τ) = find_zero(η -> Φl(τ, η), (-ηmax, ηmax), Method())
 
-    τ_gl, weight_gl = gausslegendre(10) # TODO: precompute?
+    τ_gl, weight_gl = gausslegendre(16) # TODO: precompute?
     τ_gl = (τ_gl .+ 1)/2
     h = norm(𝛕)
 
-    return -h^2 * sum(hf.(τ_gl) .* weight_gl)
+    return -h^2 * sum(hf.(τ_gl) .* weight_gl) / 2
 end
