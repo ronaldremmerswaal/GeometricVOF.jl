@@ -16,7 +16,7 @@ function Meshes.measure(Φ::Function, c::Ngon)
     if T == Bool
         # Here Φ(𝐱) == true ⟺ 𝐱 ∈ 𝕊, and we must use bisection on a shifted function
         Method = Roots.Bisection
-        Φrf(p) = Φp(p) - .5
+        Φrf(p) = .5 - Φp(p)
     else
         Method = Roots.Brent
         Φrf = Φp
