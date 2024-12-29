@@ -109,7 +109,7 @@ using Test
                     if α == 0u"m^2"
                         @test s_comp ≤ shift_min
                     elseif α == measure(c)
-                        @test s_comp ≥ shift_min
+                        @test s_comp ≥ shift_max
                     else
                         @test isapprox(s_comp, s_ref, rtol=100eps())
                     end
