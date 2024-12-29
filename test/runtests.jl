@@ -3,7 +3,7 @@ using Meshes
 using Unitful
 using Test
 
-@testset "GeometricVOF.jl" begin
+@testset verbose=true "GeometricVOF.jl" begin
     @testset "initialize" begin
         # Trivial: all inside
         t = Triangle((0.0, 0.0), (1.0, 0.0), (0.0, 1.0))
