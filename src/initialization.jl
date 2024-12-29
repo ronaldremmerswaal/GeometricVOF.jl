@@ -96,5 +96,5 @@ function hf_measure(Φ::Function, v1::Point, v2::Point, Method)
     τ_gl = (τ_gl .+ 1)/2
     h = norm(𝛕)
 
-    return -h^2 * sum(hf.(τ_gl) .* weight_gl) / 2
+    return -h^2 * (hf.(τ_gl) ⋅ weight_gl) / 2
 end
