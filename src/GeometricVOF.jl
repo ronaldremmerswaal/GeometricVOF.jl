@@ -6,6 +6,8 @@ using Meshes
 using Roots
 using Unitful
 
+export measure
+
 include("initialization.jl")
 
 end
