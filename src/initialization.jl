@@ -9,7 +9,7 @@ or
     𝕊 = {𝐱 ∈ c | Φ(𝐱)}
 if Φ is boolean.
 """
-function measure(Φ::Function, c::Ngon)
+function Meshes.measure(Φ::Function, c::Ngon)
     Φp(p::Point) = Φ(p.coords.x, p.coords.y)
     T = typeof(Φp(c.vertices[1]))
 
