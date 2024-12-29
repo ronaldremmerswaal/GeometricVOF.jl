@@ -58,34 +58,64 @@ using Test
         end
     end
 
-    @testset "HalfSpace" begin
-        t = Triangle((0.0, 0.0), (1.0, 0.0), (0.0, 1.0))
+    @testset verbose=true "HalfSpace" begin
+        @testset "intersect" begin
+            t = Triangle((0.0, 0.0), (1.0, 0.0), (0.0, 1.0))
 
-        # Trivial: all inside
-        tp = t ∩ PlanarHS([1, 0], 2.)
-        @test tp == t
+            # Trivial: all inside
+            tp = t ∩ PlanarHS([1, 0], 2u"m")
+            @test tp == t
 
-        # Trivial: all outside
-        tp = t ∩ PlanarHS([-1, 0], -2.)
-        @test isnothing(tp)
+            # Trivial: all outside
+            tp = t ∩ PlanarHS([-1, 0], -2u"m")
+            @test isnothing(tp)
 
-        # Triangle to Quadrangle
-        tp = t ∩ PlanarHS([1, 0], .5)
-        @test tp == Quadrangle((.5, 0), (.5, .5), (0, 1), (0, 0))
+            # Triangle to Quadrangle
+            tp = t ∩ PlanarHS([1, 0], .5u"m")
+            @test tp == Quadrangle((.5, 0), (.5, .5), (0, 1), (0, 0))
 
-        # Non-convex case
-        nc = Ngon((0, 0), (1, 0), (.5, .5), (1, 1), (0, 1))
-        ncp = nc ∩ PlanarHS([1, 0], .75)
-        @test ncp == Ngon((.75, 0), (.75, .25), (.5, .5), (.75, .75), (.75, 1), (0, 1), (0, 0))
+            # Non-convex case
+            nc = Ngon((0, 0), (1, 0), (.5, .5), (1, 1), (0, 1))
+            ncp = nc ∩ PlanarHS([1, 0], .75u"m")
+            @test ncp == Ngon((.75, 0), (.75, .25), (.5, .5), (.75, .75), (.75, 1), (0, 1), (0, 0))
 
-        # Edge case: colinear to edge, but all inside
-        p = PlanarHS([1, 1] / √2, √.5)
-        tp = t ∩ p
-        @test tp == t
+            # Edge case: colinear to edge, but all inside
+            p = PlanarHS([1, 1] / √2, √.5u"m")
+            tp = t ∩ p
+            @test tp == t
 
-        # Edge case: colinear to edge, but all outside
-        tp = t ∩ complement(p)
-        @test isnothing(tp)
+            # Edge case: colinear to edge, but all outside
+            tp = t ∩ complement(p)
+            @test isnothing(tp)
+        end
+
+        @testset "shift" begin
+            c = Triangle((0., 0.), (1., 0.), (0., 1.))
+            @test shift(c, [1.0, 0.0], 0.21875u"m^2") == 0.25u"m"
+
+            # Test if shift is the inverse of measure
+            N = 7
+            c = Ngon([(cos(θ), sin(θ)) for θ ∈ 2π*(0:N-1)/N]...)
+
+            M = 10
+            for θ ∈ 2π*(0:M-1)/M
+                𝛈 = GeometricVOF.SVector{2}(cos(θ), sin(θ))
+                shift_min, shift_max = GeometricVOF.shift_extrema(c, 𝛈)
+                for s_ref ∈ range(-1.2shift_min, 1.2shift_min, length=M)
+                    p = PlanarHS(𝛈, s_ref)
+
+                    α = measure(c, p)
+                    s_comp = shift(c, 𝛈, α)
+                    if α == 0u"m^2"
+                        @test s_comp ≤ shift_min
+                    elseif α == measure(c)
+                        @test s_comp ≥ shift_min
+                    else
+                        @test isapprox(s_comp, s_ref, rtol=100eps())
+                    end
+                end
+            end
+        end
     end
 
 end

@@ -11,7 +11,8 @@ struct PlanarHS{D} <: HalfSpace{D}
     𝛈::SVector{D}
     shift::Quantity
 end
-PlanarHS(𝛈::Vector, shift::Number) = PlanarHS{length(𝛈)}(SVector{length(𝛈)}(𝛈), shift * u"m")
+# PlanarHS(𝛈::Vector, shift::Number) = PlanarHS{length(𝛈)}(SVector{length(𝛈)}(𝛈), shift * u"m")
+PlanarHS(𝛈::Vector, shift::Quantity) = PlanarHS{length(𝛈)}(SVector{length(𝛈)}(𝛈), shift)
 
 complement(p::PlanarHS) = PlanarHS(-p.𝛈, -p.shift)
 
@@ -69,7 +70,7 @@ function Base.intersect(c::Ngon, p::PlanarHS{2})
 
         if edge_is_bisected
             coeff = abs(dist[vdx] / (dist[ndx] - dist[vdx]))
-            if (coeff < 1 || dist[ndx] > 0) && (coeff > 0 || dist[vdx] > 0)
+            if (coeff < 1 || dist[ndx] > 0u"m") && (coeff > 0 || dist[vdx] > 0u"m")
                 push!(new_verts, c.vertices[vdx] +
                     coeff * (c.vertices[ndx] - c.vertices[vdx]))
             end
@@ -89,6 +90,11 @@ function Base.intersect(c::Ngon, p::PlanarHS{2})
     end
 end
 
+function measure(c::Ngon, p::PlanarHS{2})
+    cp = c ∩ p
+    isnothing(cp) ? 0u"m^2" : measure(cp)
+end
+
 """
     shift(c, 𝛈, α)
 
@@ -98,11 +104,37 @@ Shift such that shifted plane with normal `𝛈` yields intersection volume give
 # Examples
 ```julia-repl
 julia> c = Triangle((0., 0.), (1., 0.), (0., 1.))
-julia> shift(c, [1.0, 0.0], 0.5u"m^2")
--0.5u"m"
+julia> shift(c, [1.0, 0.0], 0.21875u"m^2")
+0.25u"m"
 ```
 """
 shift(c::Ngon, 𝛈::Vector, α::Quantity) = shift(c, SVector{2}(𝛈), α)
 function shift(c::Ngon, 𝛈::SVector{2}, α::Quantity) # TODO constrain α to have units m^2
 
+    α_err(shift) = measure(c, PlanarHS(𝛈, shift)) - α
+    shift0 = 𝛈 ⋅ to(centroid(c))
+    α_err0 = α_err(shift0)
+
+    if α_err0 == 0u"m" return shift0 end
+
+    shift_min, shift_max = shift_extrema(c, 𝛈)
+
+    bracket = α_err0 > 0u"m^2" ? (shift_min, shift0) : (shift0, shift_max)
+
+    return find_zero(α_err, bracket, Roots.Brent())
+end
+
+function shift_extrema(c::Ngon, 𝛈::SVector{2})
+    shift_min = floatmax()u"m"
+    shift_max = floatmin()u"m"
+    for v ∈ c.vertices
+        shift_val = 𝛈[1] * v.coords.x + 𝛈[2] * v.coords.y
+        if shift_val < shift_min
+            shift_min = shift_val
+        end
+        if shift_val > shift_max
+            shift_max = shift_val
+        end
+    end
+    return shift_min, shift_max
 end
