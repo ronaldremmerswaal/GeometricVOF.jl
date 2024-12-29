@@ -88,3 +88,21 @@ function Base.intersect(c::Ngon, p::PlanarHS{2})
         return Ngon(new_verts...)
     end
 end
+
+"""
+    shift(c, 𝛈, α)
+
+Shift such that shifted plane with normal `𝛈` yields intersection volume given by
+`α`. It is the inverse of the `measure(c, Plane(𝛈, shift))` function.
+
+# Examples
+```julia-repl
+julia> c = Triangle((0., 0.), (1., 0.), (0., 1.))
+julia> shift(c, [1.0, 0.0], 0.5u"m^2")
+-0.5u"m"
+```
+"""
+shift(c::Ngon, 𝛈::Vector, α::Quantity) = shift(c, SVector{2}(𝛈), α)
+function shift(c::Ngon, 𝛈::SVector{2}, α::Quantity) # TODO constrain α to have units m^2
+
+end
