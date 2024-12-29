@@ -7,7 +7,7 @@ using Roots
 using Unitful
 using StaticArrays
 
-export measure, intersect, PlanarHS
+export measure, intersect, PlanarHS, complement
 
 include("initialization.jl")
 include("halfspace.jl")

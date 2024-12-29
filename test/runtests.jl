@@ -79,11 +79,12 @@ using Test
         @test ncp == Ngon((.75, 0), (.75, .25), (.5, .5), (.75, .75), (.75, 1), (0, 1), (0, 0))
 
         # Edge case: colinear to edge, but all inside
-        tp = t ∩ PlanarHS([1, 1] / √2, √.5)
+        p = PlanarHS([1, 1] / √2, √.5)
+        tp = t ∩ p
         @test tp == t
 
         # Edge case: colinear to edge, but all outside
-        tp = t ∩ PlanarHS(-[1, 1] / √2, -√.5)
+        tp = t ∩ complement(p)
         @test isnothing(tp)
     end
 
