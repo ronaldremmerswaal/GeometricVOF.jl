@@ -1,5 +1,5 @@
 using GeometricVOF
-using Meshes
+using Meshes: refine, TriSubdivision
 using Unitful
 using Test
 

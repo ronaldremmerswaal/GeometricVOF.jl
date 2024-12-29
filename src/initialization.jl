@@ -1,4 +1,4 @@
-import Meshes: measure
+import Meshes.measure
 
 """
     M = measure(Φ::Function, c::Ngon)
@@ -9,7 +9,7 @@ or
     𝕊 = {𝐱 ∈ c | Φ(𝐱)}
 if Φ is boolean.
 """
-function Meshes.measure(Φ::Function, c::Ngon)
+function measure(Φ::Function, c::Ngon)
     Φp(p::Point) = Φ(to(p)...)
     T = typeof(Φp(c.vertices[1]))
 
