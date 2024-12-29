@@ -101,7 +101,7 @@ using Test
             for θ ∈ 2π*(0:M-1)/M
                 𝛈 = GeometricVOF.SVector{2}(cos(θ), sin(θ))
                 shift_min, shift_max = GeometricVOF.shift_extrema(c, 𝛈)
-                for s_ref ∈ range(-1.2shift_min, 1.2shift_min, length=M)
+                for s_ref ∈ range(1.2shift_min, 1.2shift_max, length=M)
                     p = PlanarHS(𝛈, s_ref)
 
                     α = measure(c, p)
