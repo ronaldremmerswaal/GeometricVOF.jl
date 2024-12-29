@@ -95,7 +95,7 @@ using Test
 
             # Test if shift is the inverse of measure
             N = 7
-            c = Ngon([(cos(θ), sin(θ)) for θ ∈ 2π*(0:N-1)/N]...)
+            c = Ngon([(θ == 0 ? 0 : cos(θ), sin(θ)) for θ ∈ 2π*(0:N-1)/N]...) # Pacman
 
             M = 10
             for θ ∈ 2π*(0:M-1)/M
