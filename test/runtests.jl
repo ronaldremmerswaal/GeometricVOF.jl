@@ -67,6 +67,11 @@ using Test
         tp = t ∩ PlanarHS([1, 0], .5)
         @test tp == Quadrangle((.5, 0), (.5, .5), (0, 1), (0, 0))
 
+        # Non-convex case
+        nc = Ngon((0, 0), (1, 0), (.5, .5), (1, 1), (0, 1))
+        ncp = nc ∩ PlanarHS([1, 0], .75)
+        @test ncp == Ngon((.75, 0), (.75, .25), (.5, .5), (.75, .75), (.75, 1), (0, 1), (0, 0))
+
         # Edge case: colinear to edge, but all inside
         tp = t ∩ PlanarHS([1, 1] / √2, √.5)
         @test tp == t
