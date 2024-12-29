@@ -45,7 +45,7 @@ using Test
             M += measure(Φcircle, c)
         end
 
-        @test M ≈ π * R^2
+        @test isapprox(M, π * R^2, rtol=10eps())
 
         # Edge case: colinear to edge, but all inside
         for Φl ∈ [(x, y) -> y - (1u"m" - x), (x, y) -> y ≤ 1u"m" - x]
