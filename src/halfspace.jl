@@ -1,35 +1,38 @@
 abstract type HalfSpace{D} end
 
 """
-    Plane(𝛈, shift)
+    PlanarHS(𝛈, shift)
 
 Represents the half-space defined by
 
     𝛈 ⋅ 𝐱 ≤ shift
 """
-struct Plane{D} <: HalfSpace{D}
+struct PlanarHS{D} <: HalfSpace{D}
     𝛈::SVector{D}
-    shift::Number
+    shift::Quantity
 end
-Plane(𝛈::Vector, shift::Number) = Plane{length(𝛈)}(SVector{length(𝛈)}(𝛈), shift)
+PlanarHS(𝛈::Vector, shift::Number) = PlanarHS{length(𝛈)}(SVector{length(𝛈)}(𝛈), shift * u"m")
 
-distance(p::Plane, 𝐱::Point) = p.𝛈 ⋅ 𝐱 - p.shift
+distance(p::PlanarHS, 𝐱::Point) = p.𝛈 ⋅ to(𝐱) - p.shift
 
 
 """
-    intersect!(c, plane)
+    intersect(c, p)
 
-Intersects `c` with halfspace defined by `plane`.
+Intersects `c` with halfspace defined by `p`.
 
 # Examples
 ```julia-repl
 julia> c = Triangle((0., 0.), (1., 0.), (0., 1.))
-julia> p = Plane([-1., 0.], -0.5)
+julia> p = PlanarHS([-1., 0.], -0.5)
 julia> intersect(c, p)
-Triangle((0.5, 0.5), (0.5, 0.0), (1.0, 0.0)) # TODO check
+Triangle
+├─ Point(x: 0.5 m, y: 0.5 m)
+├─ Point(x: 0.5 m, y: 0.0 m)
+└─ Point(x: 1.0 m, y: 0.0 m)
 ```
 """
-function Base.intersect(c::Ngon, p::Plane{2})
+function Base.intersect(c::Ngon, p::PlanarHS{2})
 
     nr_old_verts = length(vertices(c))
 
@@ -39,7 +42,7 @@ function Base.intersect(c::Ngon, p::Plane{2})
     first_inside = 0
     for (vdx, vert) ∈ enumerate(c.vertices)
         dist[vdx] = distance(p, vert)
-        if dist[vdx] ≤ 0
+        if dist[vdx] ≤ 0u"m"
             nr_inside += 1
             if first_inside == 0
                 first_inside = vdx
@@ -80,6 +83,6 @@ function Base.intersect(c::Ngon, p::Plane{2})
     if length(new_verts) < 3
         return nothing
     else
-        return Ngon(new_verts)
+        return Ngon(new_verts...)
     end
 end

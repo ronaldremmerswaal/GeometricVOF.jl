@@ -2,12 +2,12 @@ module GeometricVOF
 
 using FastGaussQuadrature: gausslegendre
 using LinearAlgebra
-using Meshes: Point, Vec, Ngon, Triangle, Quadrangle, measure, to, vertices
+using Meshes
 using Roots
 using Unitful
 using StaticArrays
 
-export Point, Vec, Ngon, Triangle, Quadrangle, measure, to, Plane
+export measure, intersect
 
 include("initialization.jl")
 include("halfspace.jl")
