@@ -7,25 +7,31 @@ using Test
     @testset "initialize" begin
         # Trivial: all inside
         t = Triangle((0.0, 0.0), (1.0, 0.0), (0.0, 1.0))
-        for Φl ∈ [(x, y) -> x - 2u"m", (x, y) -> x ≤ 2u"m"]
-            @test measure(Φl, t) == measure(t)
+        for Φ ∈ [(x, y) -> x - 2u"m", (x, y) -> x ≤ 2u"m"]
+            @test measure(Φ, t) == measure(t)
         end
 
         # Trivial: all outside
-        for Φl ∈ [(x, y) -> x + 2u"m", (x, y) -> x ≤ -2u"m"]
-            @test measure(Φl, t) == 0u"m^2"
+        for Φ ∈ [(x, y) -> x + 2u"m", (x, y) -> x ≤ -2u"m"]
+            @test measure(Φ, t) == 0u"m^2"
         end
 
         # Linear
-        for Φl ∈ [(x, y) -> x - 0.5u"m", (x, y) -> x ≤ 0.5u"m"]
-            @test measure(Φl, t) == .5(1 - 1/4)u"m^2"
+        for Φ ∈ [(x, y) -> x - 0.5u"m", (x, y) -> x ≤ 0.5u"m"]
+            @test measure(Φ, t) == .5(1 - 1/4)u"m^2"
+        end
+
+        # Non-convex case
+        nc = Ngon((0, 0), (1, 0), (.5, .5), (1, 1), (0, 1))
+        for Φ ∈ [(x, y) -> x - .75u"m", (x, y) -> x ≤ .75u"m"]
+            @test measure(Φ, nc) == (3/4 - 1/16)u"m^2"
         end
 
         # Monomial
         q = Quadrangle((0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0))
         for p = 1 : 5
-            for Φp ∈ [(x, y) -> y - (.5 + .25(x/u"m")^p)u"m", (x, y) -> y ≤ (.5 + .25(x/u"m")^p)u"m"]
-                @test measure(Φp, q) == (1/2 + 1/(4(p+1)))u"m^2"
+            for Φ ∈ [(x, y) -> y - (.5 + .25(x/u"m")^p)u"m", (x, y) -> y ≤ (.5 + .25(x/u"m")^p)u"m"]
+                @test measure(Φ, q) == (1/2 + 1/(4(p+1)))u"m^2"
             end
         end
 
