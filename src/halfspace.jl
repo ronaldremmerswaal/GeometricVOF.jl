@@ -52,9 +52,9 @@ function Base.intersect(c::Ngon, p::PlanarHS{2})
 
     # Quick return in trivial cases
     if nr_inside == 0
-        return nothing # TODO type stability
+        return nothing  # TODO type stability
     elseif nr_inside == length(c.vertices)
-        return copy(c)
+        return c        # TODO no copy available
     end
 
     new_verts = Vector{eltype(c.vertices)}()
