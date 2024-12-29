@@ -19,7 +19,7 @@ distance(p::PlanarHS, 𝐱::Point) = p.𝛈 ⋅ to(𝐱) - p.shift
 """
     intersect(c, p)
 
-Intersects `c` with halfspace defined by `p`.
+Intersects the polygon `c` with halfspace defined by `p`.
 
 # Examples
 ```julia-repl
