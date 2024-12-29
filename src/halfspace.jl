@@ -13,7 +13,7 @@ struct PlanarHS{D} <: HalfSpace{D}
 end
 PlanarHS(𝛈::Vector, shift::Number) = PlanarHS{length(𝛈)}(SVector{length(𝛈)}(𝛈), shift * u"m")
 
-distance(p::PlanarHS, 𝐱::Point) = p.𝛈 ⋅ to(𝐱) - p.shift
+distance(p::PlanarHS{2}, 𝐱::Point) = p.𝛈[1] ⋅ 𝐱.coords.x + p.𝛈[2] ⋅ 𝐱.coords.y - p.shift
 
 
 """
