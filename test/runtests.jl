@@ -142,7 +142,8 @@ using Test
         p = PlanarHS{2}([0, 1], .5u"m")
         for ε ∈ 10. .^(-4 : -1)
             Φε(x, y) = y - f(x, ε)
-            println(symmetric_difference(Φε, p, c))
+            # TODO: shortcoming of the measure(Φ, c) function: can't account for double intersection of an edge
+            @test symmetric_difference(Φε, p, c)  > eps() broken=true
         end
     end
 
