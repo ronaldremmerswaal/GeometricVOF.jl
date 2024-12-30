@@ -129,6 +129,21 @@ using Test
         p = PlanarHS{2}([0, 1], .5u"m")
         Φ(x, y) = y - .5u"m" # TODO also for Bool
         @test symmetric_difference(Φ, p, c) == 0u"m^2"
+
+        # Simple: Δ is difference between planes
+        p = PlanarHS{2}([0, 1], .4u"m")
+        @test isapprox(symmetric_difference(Φ, p, c), .1u"m^2", rtol=10eps())
+
+        p = PlanarHS{2}([0, -1], -.5u"m")
+        @test isapprox(symmetric_difference(Φ, p, c), 1u"m^2", rtol=10eps())
+
+        # Nontrivial: planar approximation to parabola (correct volume)
+        f(x, ε) = .5u"m" + ε * (x - .5u"m")^2/u"m" - ε * u"m" / 12
+        p = PlanarHS{2}([0, 1], .5u"m")
+        for ε ∈ 10. .^(-4 : -1)
+            Φε(x, y) = y - f(x, ε)
+            println(symmetric_difference(Φε, p, c))
+        end
     end
 
     @testset "reconstruction" begin

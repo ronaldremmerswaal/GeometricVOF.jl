@@ -9,7 +9,16 @@ function symmetric_difference(Φ::Function, p::PlanarHS{2}, c::Ngon)
     c_p = c ∩ p
     c_not_p = c ∩ complement(p)
 
-    not_Φ(x, y) = -Φ(x, y)
+    not_Φ(x, y) = -Φ(x, y)  # TODO doesn't work for Bool
 
-    measure(Φ, c_not_p) + measure(not_Φ, c_p)
+    M = 0u"m^2"
+    if !isnothing(c_not_p)
+        M += measure(Φ, c_not_p)
+    end
+
+    if !isnothing(c_p)
+        M += measure(not_Φ, c_p)
+    end
+
+    return M
 end
