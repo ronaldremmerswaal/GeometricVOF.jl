@@ -168,6 +168,23 @@ using Test
         @test measure(dr) == α_ref
         @test dr ≈ Pentagon((0, 0), (0, 1), (-dt / T, 1), (-1.5dt / T, .5), (-dt / T, 0))
 
+        # Slightly less trivial case
+        s = Segment((0, 0), (0, 1))
+        u(x, y) = U * [1., 1.]
+        dr = donating_region(s, u, dt)
+        @test dr == Quadrangle((0, 0), (0, 1), (-dt / T, 1 - dt / T), (-dt / T, -dt / T))
+
+        # Fix the reference volume (but no adjustment needed)
+        α_ref = .1L^2
+        dr = donating_region(s, u, dt, α=α_ref)
+        @test measure(dr) == α_ref
+        @test dr == Pentagon((0, 0), (0, 1), (-dt / T, 1 - dt / T), ((-dt / T, .5 - dt / T)), (-dt / T, -dt / T))
+
+        # Fix the reference volume (adjustment needed)
+        α_ref = .125L^2
+        dr = donating_region(s, u, dt, α=α_ref)
+        @test measure(dr) == α_ref
+
         # Nontrivial case
         u(x, y) = U * [sin(x/L) * cos(3y/L), sin((x + y) / L)]
         s = Segment((0, 0), (.3, .2))
