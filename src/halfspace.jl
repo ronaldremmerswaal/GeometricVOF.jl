@@ -90,7 +90,7 @@ function Base.intersect(c::Ngon, p::PlanarHS{2})
     end
 end
 
-function measure(c::Ngon, p::PlanarHS{2})
+function measure(p::PlanarHS{2}, c::Ngon)
     cp = c ∩ p
     isnothing(cp) ? 0u"m^2" : measure(cp)
 end
@@ -111,7 +111,7 @@ julia> shift(c, [1.0, 0.0], 0.21875u"m^2")
 shift(c::Ngon, 𝛈::Vector, α::Quantity) = shift(c, SVector{2}(𝛈), α)
 function shift(c::Ngon, 𝛈::SVector{2}, α::Quantity) # TODO constrain α to have units m^2
 
-    α_err(shift) = measure(c, PlanarHS(𝛈, shift)) - α
+    α_err(shift) = measure(PlanarHS(𝛈, shift), c) - α
     shift0 = 𝛈 ⋅ to(centroid(c))
     α_err0 = α_err(shift0)
 

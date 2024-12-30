@@ -104,7 +104,7 @@ using Test
                 for s_ref ∈ range(1.2shift_min, 1.2shift_max, length=M)
                     p = PlanarHS(𝛈, s_ref)
 
-                    α = measure(c, p)
+                    α = measure(p, c)
                     s_comp = shift(c, 𝛈, α)
                     if α == 0u"m^2"
                         @test s_comp ≤ shift_min
@@ -114,6 +114,31 @@ using Test
                         @test isapprox(s_comp, s_ref, rtol=100eps())
                     end
                 end
+            end
+        end
+    end
+
+    @testset "reconstruction" begin
+        # Test if linear interface is reconstructed exactly
+        mesh = CartesianGrid((3, 3), (-.5, -.5), (1/3, 1/3))
+
+        M = 10
+        for θ ∈ 2π*(0:M-1)/M
+            𝛈 = GeometricVOF.SVector{2}(cos(θ), sin(θ))
+            shift_min, shift_max = GeometricVOF.shift_extrema(mesh[5], 𝛈)
+            for shift_ref ∈ range(.9shift_min, .9shift_max, length=M)
+                p_ref = PlanarHS{2}(𝛈, shift_ref)
+
+                # Initialize reference volumes
+                αs = [measure(p_ref, c) for c ∈ mesh]
+
+                recon = LVIRA(collect(mesh), αs)
+
+                p0 = PlanarHS{2}(GeometricVOF.angle_to_normal(θ + 0.7), 0u"m")
+                p_recon = reconstruct(recon, mesh[5], αs[5], p0)
+
+                @test isapprox(p_recon.shift, p_ref.shift, rtol=100eps())
+                @test isapprox(p_recon.𝛈, p_ref.𝛈, rtol=100eps())
             end
         end
     end
