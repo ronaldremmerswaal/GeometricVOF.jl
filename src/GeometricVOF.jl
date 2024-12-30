@@ -10,7 +10,7 @@ using StaticArrays
 
 export PlanarHS, LVIRA
 export measure, intersect,  complement, shift, reconstruct, distance, donating_region,
-    smeasure
+    smeasure, symmetric_difference
 
 include("initialization.jl")
 include("halfspace.jl")

@@ -84,6 +84,10 @@ function hf_measure(Φ::Function, v1::Point, v2::Point, Method)
     ηmax = 1    # Length-scale (relative to norm(v1 - v2)) used in find_zero
 
     𝛕 = v1 - v2
+    h = norm(𝛕)
+    if h < 10eps()u"m"
+        return 0u"m^2"
+    end
     𝛈 = Vec(𝛕[2], -𝛕[1]) # Outward pointing normal (in hf direction)
 
     # The levelset function in local coordinates on τ ∈ [0, 1]
@@ -94,7 +98,6 @@ function hf_measure(Φ::Function, v1::Point, v2::Point, Method)
 
     τ_gl, weight_gl = gausslegendre(16) # TODO: precompute?
     τ_gl = (τ_gl .+ 1)/2
-    h = norm(𝛕)
 
     return -h^2 * (hf.(τ_gl) ⋅ weight_gl) / 2
 end

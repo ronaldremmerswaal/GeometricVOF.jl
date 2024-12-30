@@ -70,6 +70,11 @@ using Test
             tp = t ∩ PlanarHS([-1, 0], -2u"m")
             @test isnothing(tp)
 
+            # Quad to Quad
+            c = Quadrangle((0, 0), (1, 0), (1, 1), (0, 1))
+            p = PlanarHS{2}([0, 1], .5u"m")
+            @test c ∩ p == Quadrangle((1, 0), (1, .5), (0, .5), (0, 0))
+
             # Triangle to Quadrangle
             tp = t ∩ PlanarHS([1, 0], .5u"m")
             @test tp == Quadrangle((.5, 0), (.5, .5), (0, 1), (0, 0))
@@ -118,8 +123,12 @@ using Test
         end
     end
 
-    @testset "symmetric_difference" begin
-
+    @testset "symmetric_difference (Δ)" begin
+        # Exact: Δ = zero
+        c = Quadrangle((0, 0), (1, 0), (1, 1), (0, 1))
+        p = PlanarHS{2}([0, 1], .5u"m")
+        Φ(x, y) = y - .5u"m" # TODO also for Bool
+        @test symmetric_difference(Φ, p, c) == 0u"m^2"
     end
 
     @testset "reconstruction" begin
