@@ -95,10 +95,6 @@ function measure(p::PlanarHS{2}, c::Ngon)
     isnothing(cp) ? 0u"m^2" : measure(cp)
 end
 
-function smeasure(p::PlanarHS{2}, c::Ngon)
-    cp = c ∩ p
-    isnothing(cp) ? 0u"m^2" : smeasure(cp)
-end
 
 """
     shift(c, 𝛈, α)

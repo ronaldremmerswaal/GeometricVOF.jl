@@ -20,6 +20,11 @@ function smeasure(p::Ngon)
     M /= 2
 end
 
+function smeasure(p::PlanarHS{2}, c::Ngon)
+    cp = c ∩ p
+    isnothing(cp) ? 0u"m^2" : smeasure(cp)
+end
+
 function donating_region(s::Segment{𝔼{2}}, u::Function, dt::Quantity;
     α::Union{Nothing, Quantity}=nothing)
     velo = [u(to(s.vertices[1])...), u(to(s.vertices[2])...)]

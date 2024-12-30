@@ -118,6 +118,10 @@ using Test
         end
     end
 
+    @testset "symmetric_difference" begin
+
+    end
+
     @testset "reconstruction" begin
         # Test if linear interface is reconstructed exactly
         mesh = CartesianGrid((3, 3), (-.5, -.5), (1/3, 1/3))
