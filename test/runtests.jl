@@ -195,6 +195,23 @@ using Test
         dr = donating_region(s, u, dt, α=α_ref)
         @test isa(dr, Pentagon)
         @test isapprox(measure(dr), α_ref, rtol=10eps())
+
+        # Trivial, but opposite sign
+        s = Segment((0, 0), (0, 1))
+        u(x, y) = U * [-1., 0.]
+
+        # Fix the reference volume (but no adjustment needed)
+        α_ref = -.1L^2
+        dr = donating_region(s, u, dt, α=α_ref)
+        @test smeasure(dr) == α_ref
+        @test dr == Pentagon((0, 0), (0, 1), (dt / T, 1), (dt / T, .5), (dt / T, 0))
+
+        # Fix the reference volume (adjustment needed)
+        α_ref = -.125L^2
+        dr = donating_region(s, u, dt, α=α_ref)
+        @test smeasure(dr) == α_ref
+        @test dr ≈ Pentagon((0, 0), (0, 1), (dt / T, 1), (1.5dt / T, .5), (dt / T, 0))
+
     end
 
 end
