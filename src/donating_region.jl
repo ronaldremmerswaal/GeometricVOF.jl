@@ -1,8 +1,4 @@
-function tangent(s::Segment{𝔼{2}})
-    𝐭 = ustrip([s.vertices.data[2].coords.x - s.vertices.data[1].coords.x,
-                s.vertices.data[2].coords.y - s.vertices.data[1].coords.y])
-    normalize!(𝐭)
-end
+tangent(s::Segment{𝔼{2}}) = normalize(s.vertices[2] - s.vertices[1])
 
 function normal(s::Segment{𝔼{2}})
     𝐭 = tangent(s)
