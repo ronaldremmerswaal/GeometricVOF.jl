@@ -6,7 +6,7 @@ function reconstruct(cfun::CostFunction, c::Ngon, α::Quantity, p0::PlanarHS{2})
     end
 
     θ0 = GeometricVOF.normal_to_angle(p0.𝛈)
-    res = optimize(wrapped_cfun, [θ0], Optim.Options(g_tol=1E-30, x_tol=1E-6))
+    res = optimize(wrapped_cfun, [θ0], g_tol=1E-30, x_tol=1E-6)
 
     # TODO make a conversion function: (θ, α) -> PlanarHS
     θ = res.minimizer[1]
