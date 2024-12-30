@@ -186,7 +186,7 @@ using Test
         @test measure(dr) == α_ref
 
         # Nontrivial case
-        u(x, y) = U * [sin(x/L) * cos(3y/L), sin((x + y) / L)]
+        u(x, y) = U * [-.1 + sin(x/L) * cos(3y/L), sin((x + y) / L)]
         s = Segment((0, 0), (.3, .2))
         dr = donating_region(s, u, dt)
         @test isa(dr, Quadrangle)

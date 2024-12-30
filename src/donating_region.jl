@@ -29,9 +29,10 @@ function donating_region(s::Segment{𝔼{2}}, velo::AbstractVector{Vector{T}},
         return poly
     end
 
-    n = normal(s)
+    s_pre = Segment(v1_pre, v2_pre)
+    n = normal(s_pre)
     volume_err = α - measure(poly)
-    dn = n * (2 *  volume_err / measure(s))
+    dn = n * (2 *  volume_err / measure(s_pre))
     vmid_pre = v1_pre + (v2_pre - v1_pre) / 2 + Vec(dn...)
 
     Pentagon(v1, v2, v2_pre, vmid_pre, v1_pre)
