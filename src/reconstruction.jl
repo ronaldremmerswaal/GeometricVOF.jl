@@ -1,3 +1,5 @@
+abstract type CostFunction end
+
 function reconstruct(cfun::CostFunction, c::Ngon, α::Quantity, p0::PlanarHS{2})
     function wrapped_cfun(θ::Vector)
         𝛈 = GeometricVOF.angle_to_normal(θ[1])
@@ -16,8 +18,6 @@ function reconstruct(cfun::CostFunction, c::Ngon, α::Quantity, p0::PlanarHS{2})
 
     return PlanarHS{2}(𝛈, s)
 end
-
-abstract type CostFunction end
 
 struct LVIRA <: CostFunction
     cs::Vector{Ngon}

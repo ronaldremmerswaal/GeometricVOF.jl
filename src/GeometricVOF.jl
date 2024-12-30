@@ -8,10 +8,12 @@ using Roots
 using Unitful
 using StaticArrays
 
-export measure, intersect, PlanarHS, complement, shift, reconstruct, distance, LVIRA
+export PlanarHS, LVIRA
+export measure, intersect,  complement, shift, reconstruct, distance, donating_region
 
 include("initialization.jl")
 include("halfspace.jl")
 include("reconstruction.jl")
+include("donating_region.jl")
 
 end

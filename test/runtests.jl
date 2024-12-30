@@ -143,4 +143,41 @@ using Test
         end
     end
 
+    @testset "donating_region" begin
+        U = u"m/s"
+        L = u"m"
+        T = L / U
+
+        dt = .1T
+
+        # Trivial case
+        s = Segment((0, 0), (0, 1))
+        u(x, y) = U * [1., 0.]
+        dr = donating_region(s, u, dt)
+        @test dr == Quadrangle((0, 0), (0, 1), (-dt / T, 1), (-dt / T, 0))
+
+        # Fix the reference volume (but no adjustment needed)
+        α_ref = .1L^2
+        dr = donating_region(s, u, dt, α=α_ref)
+        @test measure(dr) == α_ref
+        @test dr == Pentagon((0, 0), (0, 1), (-dt / T, 1), (-dt / T, .5), (-dt / T, 0))
+
+        # Fix the reference volume (adjustment needed)
+        α_ref = .125L^2
+        dr = donating_region(s, u, dt, α=α_ref)
+        @test measure(dr) == α_ref
+        @test dr ≈ Pentagon((0, 0), (0, 1), (-dt / T, 1), (-1.5dt / T, .5), (-dt / T, 0))
+
+        # Nontrivial case
+        u(x, y) = U * [sin(x/L) * cos(3y/L), sin((x + y) / L)]
+        s = Segment((0, 0), (.3, .2))
+        dr = donating_region(s, u, dt)
+        @test isa(dr, Quadrangle)
+
+        α_ref = 6E-3L^2
+        dr = donating_region(s, u, dt, α=α_ref)
+        @test isa(dr, Pentagon)
+        @test measure(dr) == α_ref
+    end
+
 end
