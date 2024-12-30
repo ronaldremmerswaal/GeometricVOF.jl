@@ -5,6 +5,21 @@ function normal(s::Segment{𝔼{2}})
     [-𝐭[2], 𝐭[1]]
 end
 
+"""
+    smeasure(p)
+
+Signed measure of Ngon `p`.
+"""
+function smeasure(p::Ngon)
+    M = 0u"m^2"
+    for vdx ∈ eachindex(p.vertices)
+        v1 = p.vertices[vdx]
+        v2 = p.vertices[vdx==length(p.vertices) ? 1 : vdx + 1]
+        M += v1.coords.x * v2.coords.y - v1.coords.y * v2.coords.x
+    end
+    M /= 2
+end
+
 function donating_region(s::Segment{𝔼{2}}, u::Function, dt::Quantity;
     α::Union{Nothing, Quantity}=nothing)
     velo = [u(to(s.vertices[1])...), u(to(s.vertices[2])...)]
@@ -27,7 +42,7 @@ function donating_region(s::Segment{𝔼{2}}, velo::AbstractVector{Vector{T}},
 
     s_pre = Segment(v1_pre, v2_pre)
     n = normal(s_pre)
-    volume_err = α - measure(poly)
+    volume_err = α - smeasure(poly)
     dn = n * (2 *  volume_err / measure(s_pre))
     vmid_pre = v1_pre + (v2_pre - v1_pre) / 2 + Vec(dn...)
 

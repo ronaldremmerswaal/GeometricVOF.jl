@@ -194,7 +194,7 @@ using Test
         α_ref = 6E-3L^2
         dr = donating_region(s, u, dt, α=α_ref)
         @test isa(dr, Pentagon)
-        @test measure(dr) == α_ref
+        @test isapprox(measure(dr), α_ref, rtol=10eps())
     end
 
 end
