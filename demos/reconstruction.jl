@@ -12,12 +12,10 @@ N = 32
 h = 1 / N
 mesh = CartesianGrid((N, N), (-.5, -.5), (h, h))
 
-# Plot the exact interface
-θs = range(0, 2π, 100)
-
 fig = Figure()
 ax = Axis(fig[1, 1], aspect=1)
 
+# Show grid lines
 viz!(ax, mesh, showsegments=true, color=:white, segmentcolor=:gray)
 
 αs = reshape([measure(Φ, c) for c ∈ mesh], (N, N))
@@ -36,6 +34,8 @@ for i = 2 : N-1, j = 2 : N-1
     end
 end
 
+# Plot the exact interface
+θs = range(0, 2π, 100)
 lines!(ax, ustrip(R.(θs) .* cos.(θs)), ustrip(R.(θs) .* sin.(θs)), linewidth=4)
 
 fig
