@@ -29,7 +29,7 @@ for i = 2 : N-1, j = 2 : N-1
 
     cp = mesh[i, j] ∩ p_recon
     if !isnothing(cp)
-        viz!(ax, cp)
+        viz!(ax, cp, alpha=.8)
     end
 end
 
