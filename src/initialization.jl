@@ -8,8 +8,13 @@ Compute the measure M occupied by the reference phase. I.e. compute the measure 
 or
     𝕊 = {𝐱 ∈ c | Φ(𝐱)}
 if Φ is boolean.
+In rare cases an approximation error might occur, which can be approximated as (relative to
+the diameter H of the Ngon):
+    π / (2 κ^2)             if κ > 1 / h
+    H κ / (8 * nref^2)      if κ < 1 / h
+where κ is a bound on the curvature of the interface and h = H / nref
 """
-function Meshes.measure(Φ::Function, c::Ngon)
+function Meshes.measure(Φ::Function, c::Ngon; nref::Int=8)
     Φp(p::Point) = Φ(p.coords.x, p.coords.y)
     T = typeof(Φp(c.vertices[1]))
 
@@ -22,7 +27,7 @@ function Meshes.measure(Φ::Function, c::Ngon)
         Φrf = Φp
     end
 
-    c = refine_edges(c, factor=8)   # Optional step that allows for detection of multiple
+    c = refine_edges(c, nref=8)   # Optional step that allows for detection of multiple
                                     # intersections per edge
 
     Φverts = Φrf.(c.vertices)
@@ -105,9 +110,9 @@ function hf_measure(Φ::Function, v1::Point, v2::Point, Method)
     return -h^2 * (hf.(τ_gl) ⋅ weight_gl) / 2
 end
 
-function refine_edges(c::Ngon; factor::Int=2)
-    @assert factor ≥ 1 "Refinement factor (given by $factor) must be a positive integer"
-    if factor == 1
+function refine_edges(c::Ngon; nref::Int=2)
+    @assert nref ≥ 1 "Refinement nref (given by $nref) must be a positive integer"
+    if nref == 1
         return c
     end
     vs = vertices(c)
@@ -119,8 +124,8 @@ function refine_edges(c::Ngon; factor::Int=2)
         v = vs[vdx]
         dir = vs[ndx] - vs[vdx]
         push!(rvs, v)
-        for rdx = 1 : factor - 1
-            push!(rvs, v + (rdx / factor) * dir)
+        for rdx = 1 : nref - 1
+            push!(rvs, v + (rdx / nref) * dir)
         end
     end
 
