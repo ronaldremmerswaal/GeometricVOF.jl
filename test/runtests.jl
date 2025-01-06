@@ -184,17 +184,20 @@ using Test
             sd_err = 0u"m^2"
             for i = 2 : N-1, j = 2 : N-1
                 recon = LVIRA(collect(mesh[i-1:i+1, j-1:j+1]), αs[i-1:i+1, j-1:j+1])
-                p0 = PlanarHS{2}([1., 0.], 0u"m")
-                p_recon = reconstruct(recon, mesh[i, j], αs[i, j], p0)
+                c = mesh[i, j]
+                xc = centroid(c)
+                θ0 = atan(xc.coords.y, xc.coords.x) + .1
+                p0 = PlanarHS{2}(GeometricVOF.angle_to_normal(θ0), 0u"m")
+                p_recon = reconstruct(recon, c, αs[i, j], p0)
 
-                sd_err += symmetric_difference(Φ, p_recon, mesh[i, j])
+                sd_err += symmetric_difference(Φ, p_recon, c)
             end
 
             push!(sd_errs, sd_err)
         end
-        println(sd_errs)
+
         rates = log2.(sd_errs[1 : end-1] ./ sd_errs[2 : end])
-        println(rates)
+        @test all(rates .> 1.9)
     end
 
     @testset "donating_region" begin
