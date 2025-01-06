@@ -10,7 +10,7 @@ or
 if Φ is boolean.
 In rare cases an approximation error might occur, which can be approximated as (relative to
 the diameter H of the Ngon):
-    π / (2 κ^2)             if κ > 1 / h
+    π / (2 (κ * H)^2)             if κ > 1 / h
     H κ / (8 * nref^2)      if κ < 1 / h
 where κ is a bound on the curvature of the interface and h = H / nref
 """
