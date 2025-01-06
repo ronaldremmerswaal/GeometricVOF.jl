@@ -33,6 +33,6 @@ for i = 2 : N-1, j = 2 : N-1
     end
 end
 
-lines!(ax, ustrip(R.(θs) .* cos.(θs)), ustrip(R.(θs) .* sin.(θs)))
+lines!(ax, ustrip(R.(θs) .* cos.(θs)), ustrip(R.(θs) .* sin.(θs)), linewidth=4)
 
 fig
