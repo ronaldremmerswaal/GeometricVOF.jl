@@ -22,6 +22,9 @@ function Meshes.measure(Φ::Function, c::Ngon)
         Φrf = Φp
     end
 
+    c = refine_edges(c, factor=8)   # Optional step that allows for detection of multiple
+                                    # intersections per edge
+
     Φverts = Φrf.(c.vertices)
     inside_verts = Φverts .≤ zero(T)
 
@@ -100,4 +103,26 @@ function hf_measure(Φ::Function, v1::Point, v2::Point, Method)
     τ_gl = (τ_gl .+ 1)/2
 
     return -h^2 * (hf.(τ_gl) ⋅ weight_gl) / 2
+end
+
+function refine_edges(c::Ngon; factor::Int=2)
+    @assert factor ≥ 1 "Refinement factor (given by $factor) must be a positive integer"
+    if factor == 1
+        return c
+    end
+    vs = vertices(c)
+
+    rvs = Vector{eltype(vs)}()
+    for vdx ∈ eachindex(vs)
+        ndx = vdx == length(vs) ? 1 : vdx + 1
+
+        v = vs[vdx]
+        dir = vs[ndx] - vs[vdx]
+        push!(rvs, v)
+        for rdx = 1 : factor - 1
+            push!(rvs, v + (rdx / factor) * dir)
+        end
+    end
+
+    return Ngon(rvs...)
 end

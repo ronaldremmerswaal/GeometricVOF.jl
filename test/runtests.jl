@@ -8,30 +8,30 @@ using Test
         # Trivial: all inside
         t = Triangle((0.0, 0.0), (1.0, 0.0), (0.0, 1.0))
         for Φ ∈ [(x, y) -> x - 2u"m", (x, y) -> x ≤ 2u"m"]
-            @test measure(Φ, t) == measure(t)
+            @test isapprox(measure(Φ, t), measure(t), rtol=10eps())
         end
 
         # Trivial: all outside
         for Φ ∈ [(x, y) -> x + 2u"m", (x, y) -> x ≤ -2u"m"]
-            @test measure(Φ, t) == 0u"m^2"
+            @test isapprox(measure(Φ, t), 0u"m^2", rtol=10eps())
         end
 
         # Linear
         for Φ ∈ [(x, y) -> x - 0.5u"m", (x, y) -> x ≤ 0.5u"m"]
-            @test measure(Φ, t) == .5(1 - 1/4)u"m^2"
+            @test isapprox(measure(Φ, t), .5(1 - 1/4)u"m^2", rtol=10eps())
         end
 
         # Non-convex case
         nc = Ngon((0, 0), (1, 0), (.5, .5), (1, 1), (0, 1))
         for Φ ∈ [(x, y) -> x - .75u"m", (x, y) -> x ≤ .75u"m"]
-            @test measure(Φ, nc) == (3/4 - 1/16)u"m^2"
+            @test isapprox(measure(Φ, nc), (3/4 - 1/16)u"m^2", rtol=10eps())
         end
 
         # Monomial
         q = Quadrangle((0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0))
         for p = 1 : 5
             for Φ ∈ [(x, y) -> y - (.5 + .25(x/u"m")^p)u"m", (x, y) -> y ≤ (.5 + .25(x/u"m")^p)u"m"]
-                @test measure(Φ, q) == (1/2 + 1/(4(p+1)))u"m^2"
+                @test isapprox(measure(Φ, q), (1/2 + 1/(4(p+1)))u"m^2", rtol=10eps())
             end
         end
 
@@ -49,7 +49,7 @@ using Test
 
         # Edge case: colinear to edge, but all inside
         for Φl ∈ [(x, y) -> y - (1u"m" - x), (x, y) -> y ≤ 1u"m" - x]
-            @test measure(Φl, t) == measure(t)
+            @test isapprox(measure(Φl, t), measure(t), rtol=10eps())
         end
 
         # Edge case: colinear to edge, all outside
@@ -142,8 +142,8 @@ using Test
         p = PlanarHS{2}([0, 1], .5u"m")
         for ε ∈ 10. .^(-4 : -1)
             Φε(x, y) = y - f(x, ε)
-            # TODO: shortcoming of the measure(Φ, c) function: can't account for double intersection of an edge
-            @test symmetric_difference(Φε, p, c)  > eps() broken=true
+            # TODO: exact value
+            @test symmetric_difference(Φε, p, c)  > eps()u"m^2"
         end
     end
 
