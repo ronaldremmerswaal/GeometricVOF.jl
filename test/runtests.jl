@@ -142,8 +142,9 @@ using Test
         p = PlanarHS{2}([0, 1], .5u"m")
         for ε ∈ 10. .^(-4 : -1)
             Φε(x, y) = y - f(x, ε)
-            # TODO: exact value
-            @test symmetric_difference(Φε, p, c)  > eps()u"m^2"
+            xs = 1/2 - 1/√12
+            @test isapprox(symmetric_difference(Φε, p, c), ε * (4/3 * xs^3 - 2xs^2 +
+                2/3 * xs - 1/24 + 1/8 - 1/12)u"m^2", rtol=10eps()/ε)
         end
     end
 
