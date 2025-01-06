@@ -20,11 +20,11 @@ function reconstruct(cfun::CostFunction, c::Ngon, α::Quantity, p0::PlanarHS{2})
 end
 
 struct LVIRA <: CostFunction
-    cs::Vector{Ngon}
-    αs::Vector{Quantity}
-    scalings::Vector{Quantity}
+    cs::AbstractArray{Ngon}
+    αs::AbstractArray{Quantity}
+    scalings::AbstractArray{Quantity}
 end
-LVIRA(cs::Vector{N}, αs::Vector{T}) where {N <: Ngon, T <: Quantity} =
+LVIRA(cs::AbstractArray{N}, αs::AbstractArray{T}) where {N <: Ngon, T <: Quantity} =
     LVIRA(cs, αs, measure.(cs))
 
 function (f::LVIRA)(p::PlanarHS{2})

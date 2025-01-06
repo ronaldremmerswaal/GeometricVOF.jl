@@ -171,6 +171,30 @@ using Test
                 @test isapprox(p_recon.𝛈, p_ref.𝛈, rtol=100eps())
             end
         end
+
+        # Test accuracy of reconstruction of flower shape
+        R = 0.3u"m"
+        Φ(x, y) = x^2 + y^2 - R^2 * (1 + .1sin(.1 + atan(y, x)))^2
+        sd_errs = Vector{Float64}()u"m^2"
+        for N ∈ 2 .^(4 : 6)
+            h = 1 / N
+            mesh = CartesianGrid((N, N), (-.5, -.5), (h, h))
+
+            αs = reshape([measure(Φ, c) for c ∈ mesh], (N, N))
+            sd_err = 0u"m^2"
+            for i = 2 : N-1, j = 2 : N-1
+                recon = LVIRA(collect(mesh[i-1:i+1, j-1:j+1]), αs[i-1:i+1, j-1:j+1])
+                p0 = PlanarHS{2}([1., 0.], 0u"m")
+                p_recon = reconstruct(recon, mesh[i, j], αs[i, j], p0)
+
+                sd_err += symmetric_difference(Φ, p_recon, mesh[i, j])
+            end
+
+            push!(sd_errs, sd_err)
+        end
+        println(sd_errs)
+        rates = log2.(sd_errs[1 : end-1] ./ sd_errs[2 : end])
+        println(rates)
     end
 
     @testset "donating_region" begin
