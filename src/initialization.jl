@@ -10,9 +10,9 @@ or
 if Φ is boolean.
 In rare cases an approximation error might occur, which can be approximated as (relative to
 the diameter H of the Ngon):
-    π / (2 (κ * H)^2)       if κ > 1 / h
-    H κ / (8 * nref^2)      if κ < 1 / h
-where κ is a bound on the curvature of the interface and h = H / nref
+    H κ / (8 * nref^2)
+where κ is a bound on the curvature of the interface and h = H / nref. Here, we assume
+κ < 1 / h.
 """
 function Meshes.measure(Φ::Function, c::Ngon; nref::Int=8)
     Φp(p::Point) = Φ(p.coords.x, p.coords.y)
