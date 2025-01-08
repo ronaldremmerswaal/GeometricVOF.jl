@@ -139,6 +139,3 @@ function shift_extrema(c::Ngon, 𝛈::SVector{2})
     end
     return shift_min, shift_max
 end
-
-angle_to_normal(θ::Number) = SVector{2}(cos(θ), sin(θ))
-normal_to_angle(𝛈::AbstractVector) = atan(𝛈[2], 𝛈[1])

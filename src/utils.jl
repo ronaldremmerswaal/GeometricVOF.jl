@@ -22,3 +22,36 @@ function symmetric_difference(Φ::Function, p::PlanarHS{2}, c::Ngon)
 
     return M
 end
+
+"""
+    moments(c)
+
+Zeroth and first order moments of Ngon `c`.
+
+# Examples
+```julia-repl
+julia> poly = Triangle((0, 0), (1, 0), (0, 1))
+julia> moments(poly)
+(0.5 m^2, [0.16666666666666666 m^3, 0.16666666666666666 m^3])
+```
+"""
+function moments(c::Ngon)
+    mom0 = 0u"m^2"
+    mom1 = [0, 0]u"m^3"
+    verts = vertices(c)
+
+    for vdx ∈ eachindex(verts)
+        v1 = verts[vdx]
+        v2 = verts[vdx==length(verts) ? 1 : vdx + 1]
+        mom0_tmp = v1.coords.x * v2.coords.y - v1.coords.y * v2.coords.x
+
+        mom0 += mom0_tmp
+        mom1[1] += mom0_tmp * (v1.coords.x + v2.coords.x)
+        mom1[2] += mom0_tmp * (v1.coords.y + v2.coords.y)
+    end
+
+    return mom0 / 2, mom1 / 6
+end
+
+angle_to_normal(θ::Number) = SVector{2}(cos(θ), sin(θ))
+normal_to_angle(𝛈::AbstractVector) = atan(𝛈[2], 𝛈[1])
