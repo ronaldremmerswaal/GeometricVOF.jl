@@ -27,7 +27,7 @@ function Meshes.measure(Φ::Function, c::Ngon; nref::Int=8)
         Φrf = Φp
     end
 
-    c = refine_edges(c, nref=8)   # Optional step that allows for detection of multiple
+    c = refine_edges(c, nref=nref)  # Optional step that allows for detection of multiple
                                     # intersections per edge
 
     Φverts = Φrf.(c.vertices)
