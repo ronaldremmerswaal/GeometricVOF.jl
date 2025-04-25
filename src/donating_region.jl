@@ -10,11 +10,26 @@ end
 
 Signed measure of Ngon `p`.
 """
-function smeasure(p::Ngon)
+smeasure(p::Ngon) = smeasure(p.vertices)
+
+"""
+    smeasure(p)
+
+Signed measure of PolyArea `p`.
+"""
+function smeasure(p::PolyArea)
     M = 0u"m^2"
-    for vdx ∈ eachindex(p.vertices)
-        v1 = p.vertices[vdx]
-        v2 = p.vertices[vdx==length(p.vertices) ? 1 : vdx + 1]
+    for ring ∈ p.rings
+        M += smeasure(ring.vertices)
+    end
+    M
+end
+
+function smeasure(verts::AbstractVector{<:Point{𝔼{2}}})
+    M = 0u"m^2"
+    for vdx ∈ eachindex(verts)
+        v1 = verts[vdx]
+        v2 = verts[vdx==length(verts) ? 1 : vdx + 1]
         M += v1.coords.x * v2.coords.y - v1.coords.y * v2.coords.x
     end
     M /= 2
