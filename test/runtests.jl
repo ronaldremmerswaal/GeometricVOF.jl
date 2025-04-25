@@ -160,12 +160,12 @@ using Test
                 p_ref = PlanarHS{2}(𝛈, shift_ref)
 
                 # Initialize reference volumes
-                αs = [measure(p_ref, c) for c ∈ mesh]
+                αs = [measure(p_ref, c) / measure(c) for c ∈ mesh]
 
                 recon = LVIRA(collect(mesh), αs)
 
                 p0 = PlanarHS{2}(GeometricVOF.angle_to_normal(θ + 0.7), 0u"m")
-                p_recon = reconstruct(recon, mesh[5], αs[5], p0)
+                p_recon = reconstruct(recon, mesh[5], αs[5] * measure(mesh[5]), p0)
 
                 @test isapprox(p_recon.shift, p_ref.shift, rtol=100eps())
                 @test isapprox(p_recon.𝛈, p_ref.𝛈, rtol=100eps())
@@ -180,7 +180,7 @@ using Test
             h = 1 / N
             mesh = CartesianGrid((N, N), (-.5, -.5), (h, h))
 
-            αs = reshape([measure(Φ, c) for c ∈ mesh], (N, N))
+            αs = reshape([measure(Φ, c) / measure(c) for c ∈ mesh], (N, N))
             sd_err = 0u"m^2"
             for i = 2 : N-1, j = 2 : N-1
                 recon = LVIRA(collect(mesh[i-1:i+1, j-1:j+1]), αs[i-1:i+1, j-1:j+1])
@@ -188,7 +188,7 @@ using Test
                 xc = centroid(c)
                 θ0 = atan(xc.coords.y, xc.coords.x) + .1
                 p0 = PlanarHS{2}(GeometricVOF.angle_to_normal(θ0), 0u"m")
-                p_recon = reconstruct(recon, c, αs[i, j], p0)
+                p_recon = reconstruct(recon, c, αs[i, j] * measure(c), p0)
 
                 sd_err += symmetric_difference(Φ, p_recon, c)
             end

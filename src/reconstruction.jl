@@ -1,9 +1,9 @@
 abstract type CostFunction end
 
-function reconstruct(cfun::CostFunction, c::Ngon, α::Quantity, p0::PlanarHS{2})
+function reconstruct(cfun::CostFunction, c::Ngon, αvol::Quantity, p0::PlanarHS{2})
     function wrapped_cfun(θ::Vector)
         𝛈 = GeometricVOF.angle_to_normal(θ[1])
-        s = shift(c, 𝛈, α)
+        s = shift(c, 𝛈, αvol)
         cfun(PlanarHS{2}(𝛈, s))
     end
 
@@ -14,23 +14,23 @@ function reconstruct(cfun::CostFunction, c::Ngon, α::Quantity, p0::PlanarHS{2})
     # TODO make a conversion function: (θ, α) -> PlanarHS
     θ = res.minimizer[1]
     𝛈 = GeometricVOF.angle_to_normal(θ)
-    s = shift(c, 𝛈, α)
+    s = shift(c, 𝛈, αvol)
 
     return PlanarHS{2}(𝛈, s)
 end
 
-struct LVIRA <: CostFunction
+struct LVIRA{T} <: CostFunction
     cs::AbstractArray{Ngon}
-    αs::AbstractArray{Quantity}
-    scalings::AbstractArray{Quantity}
+    αs::AbstractArray{T}
+    cmeasures::AbstractArray{Quantity}
 end
-LVIRA(cs::AbstractArray{N}, αs::AbstractArray{T}) where {N <: Ngon, T <: Quantity} =
-    LVIRA(cs, αs, measure.(cs))
+LVIRA(cs::AbstractArray{N}, αs::AbstractArray{T}) where {N <: Ngon, T <: Real} =
+    LVIRA{T}(cs, αs, measure.(cs))
 
 function (f::LVIRA)(p::PlanarHS{2})
     err0 = 0
-    for (c, α, scaling) ∈ zip(f.cs, f.αs, f.scalings)
-        err0 += ((measure(p, c) - α) / scaling)^2
+    for (c, α, cmeas) ∈ zip(f.cs, f.αs, f.cmeasures)
+        err0 += (measure(p, c) / cmeas - α)^2
     end
     return err0
 end
