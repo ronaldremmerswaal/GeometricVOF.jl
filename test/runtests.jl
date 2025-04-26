@@ -252,7 +252,7 @@ using Test
         u(x, y) = U * [-.1 + sin(x/L) * cos(3y/L), sin((x + y) / L)]
         s = Segment((0, 0), (.3, .2))
         drp, drm = donating_region(s, u, dt)
-        @test isa(drp, Triangle)
+        @test isnothing(drp)
         @test isa(drm, Quadrangle)
 
         α_ref = 6E-3L^2
@@ -281,6 +281,19 @@ using Test
         s = Segment((0, 0), (0, 1))
         u(x, y) = U * [y/L-0.5, 0.]
         drp, drm = donating_region(s, u, dt)
+        @test measure(drp) == 0.0125L^2
+        @test measure(drm) == 0.0125L^2
+
+        # Fix the reference volume (but no adjustment needed)
+        α_ref = 0L^2
+        drp, drm = donating_region(s, u, dt, α=α_ref)
+        @test measure(drp) == 0.0125L^2
+        @test measure(drm) == 0.0125L^2
+
+        # Fix the reference volume (adjustment needed)
+        α_ref = 0.01L^2
+        drp, drm = donating_region(s, u, dt, α=α_ref)
+        @test measure(drp) - measure(drm) ≈ α_ref
     end
 
 end
