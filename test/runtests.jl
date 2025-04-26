@@ -210,48 +210,54 @@ using Test
         # Trivial case
         s = Segment((0, 0), (0, 1))
         u(x, y) = U * [1., 0.]
-        dr = donating_region(s, u, dt)
-        @test dr == Quadrangle((0, 0), (0, 1), (-dt / T, 1), (-dt / T, 0))
+        drp, drm = donating_region(s, u, dt)
+        @test drp == Quadrangle((0, 0), (0, 1), (-dt / T, 1), (-dt / T, 0))
+        @test isnothing(drm)
 
         # Fix the reference volume (but no adjustment needed)
         α_ref = .1L^2
-        dr = donating_region(s, u, dt, α=α_ref)
-        @test measure(dr) == α_ref
-        @test dr == Pentagon((0, 0), (0, 1), (-dt / T, 1), (-dt / T, .5), (-dt / T, 0))
+        drp, drm = donating_region(s, u, dt, α=α_ref)
+        @test measure(drp) == α_ref
+        @test drp == Pentagon((0, 0), (0, 1), (-dt / T, 1), (-dt / T, .5), (-dt / T, 0))
+        @test isnothing(drm)
 
         # Fix the reference volume (adjustment needed)
         α_ref = .125L^2
-        dr = donating_region(s, u, dt, α=α_ref)
-        @test measure(dr) == α_ref
-        @test dr ≈ Pentagon((0, 0), (0, 1), (-dt / T, 1), (-1.5dt / T, .5), (-dt / T, 0))
+        drp, drm = donating_region(s, u, dt, α=α_ref)
+        @test measure(drp) == α_ref
+        @test drp ≈ Pentagon((0, 0), (0, 1), (-dt / T, 1), (-1.5dt / T, .5), (-dt / T, 0))
+        @test isnothing(drm)
 
         # Slightly less trivial case
         s = Segment((0, 0), (0, 1))
         u(x, y) = U * [1., 1.]
-        dr = donating_region(s, u, dt)
-        @test dr == Quadrangle((0, 0), (0, 1), (-dt / T, 1 - dt / T), (-dt / T, -dt / T))
+        drp, drm = donating_region(s, u, dt)
+        @test drp == Quadrangle((0, 0), (0, 1), (-dt / T, 1 - dt / T), (-dt / T, -dt / T))
+        @test isnothing(drm)
 
         # Fix the reference volume (but no adjustment needed)
         α_ref = .1L^2
-        dr = donating_region(s, u, dt, α=α_ref)
-        @test measure(dr) == α_ref
-        @test dr == Pentagon((0, 0), (0, 1), (-dt / T, 1 - dt / T), ((-dt / T, .5 - dt / T)), (-dt / T, -dt / T))
+        drp, drm = donating_region(s, u, dt, α=α_ref)
+        @test measure(drp) == α_ref
+        @test drp == Pentagon((0, 0), (0, 1), (-dt / T, 1 - dt / T), ((-dt / T, .5 - dt / T)), (-dt / T, -dt / T))
+        @test isnothing(drm)
 
         # Fix the reference volume (adjustment needed)
         α_ref = .125L^2
-        dr = donating_region(s, u, dt, α=α_ref)
-        @test measure(dr) == α_ref
+        drp, drm = donating_region(s, u, dt, α=α_ref)
+        @test measure(drp) == α_ref
+        @test isnothing(drm)
 
         # Nontrivial case
         u(x, y) = U * [-.1 + sin(x/L) * cos(3y/L), sin((x + y) / L)]
         s = Segment((0, 0), (.3, .2))
-        dr = donating_region(s, u, dt)
-        @test isa(dr, Quadrangle)
+        drp, drm = donating_region(s, u, dt)
+        @test isa(drp, Triangle)
+        @test isa(drm, Quadrangle)
 
         α_ref = 6E-3L^2
-        dr = donating_region(s, u, dt, α=α_ref)
-        @test isa(dr, Pentagon)
-        @test isapprox(measure(dr), α_ref, rtol=10eps())
+        drp, drm = donating_region(s, u, dt, α=α_ref)
+        @test isapprox(measure(drp) - measure(drm), α_ref, rtol=10eps())
 
         # Trivial, but opposite sign
         s = Segment((0, 0), (0, 1))
@@ -259,15 +265,17 @@ using Test
 
         # Fix the reference volume (but no adjustment needed)
         α_ref = -.1L^2
-        dr = donating_region(s, u, dt, α=α_ref)
-        @test smeasure(dr) == α_ref
-        @test dr == Pentagon((0, 0), (0, 1), (dt / T, 1), (dt / T, .5), (dt / T, 0))
+        drp, drm = donating_region(s, u, dt, α=α_ref)
+        @test -measure(drm) == α_ref
+        @test drm == Pentagon((0, 0), (0, 1), (dt / T, 1), (dt / T, .5), (dt / T, 0))
+        @test isnothing(drp)
 
         # Fix the reference volume (adjustment needed)
         α_ref = -.125L^2
-        dr = donating_region(s, u, dt, α=α_ref)
-        @test smeasure(dr) == α_ref
-        @test dr ≈ Pentagon((0, 0), (0, 1), (dt / T, 1), (1.5dt / T, .5), (dt / T, 0))
+        drp, drm = donating_region(s, u, dt, α=α_ref)
+        @test -measure(drm) == α_ref
+        @test drm ≈ Pentagon((0, 0), (0, 1), (dt / T, 1), (1.5dt / T, .5), (dt / T, 0))
+        @test isnothing(drp)
 
     end
 

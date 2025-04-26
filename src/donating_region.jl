@@ -55,16 +55,19 @@ function donating_region(s::Segment{𝔼{2}}, velo::AbstractVector{Vector{T}},
     v2_pre = v2 - Vec(dt * velo[2][1], dt * velo[2][2])
 
     poly = Quadrangle(v1, v2, v2_pre, v1_pre)
-    if isnothing(α)
-        # No volume constraint
-        return poly
-    end
 
     s_pre = Segment(v1_pre, v2_pre)
     n = normal(s_pre)
-    volume_err = α - smeasure(poly)
-    dn = n * (2 *  volume_err / measure(s_pre))
-    vmid_pre = v1_pre + (v2_pre - v1_pre) / 2 + Vec(dn...)
 
-    Pentagon(v1, v2, v2_pre, vmid_pre, v1_pre)
+    if !isnothing(α)
+        volume_err = α - smeasure(poly)
+        dn = n * (2 *  volume_err / measure(s_pre))
+        vmid_pre = v1_pre + (v2_pre - v1_pre) / 2 + Vec(dn...)
+
+        poly = Pentagon(v1, v2, v2_pre, vmid_pre, v1_pre)
+    end
+
+    # We split the DR into at most two parts: one positively oriented, one negatively
+    hs = PlanarHS(n, n ⋅ to(v1))
+    (poly ∩ complement(hs), poly ∩ hs)
 end
