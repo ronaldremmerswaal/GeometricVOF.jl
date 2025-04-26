@@ -20,16 +20,16 @@ LVIRA(cs::AbstractArray{N}, αs::AbstractArray{T}, c_c::Ngon) where {N <: Ngon, 
     LVIRA{T}(cs, αs, measure.(cs), c_c)
 
 function (f::LVIRA)(p::PlanarHS{2})
-    err0 = 0    # Value
-    derr0 = 0   # Derivative w.r.t. the angle
+    err = 0    # Value
+    derr = 0   # Derivative w.r.t. the angle
 
     c_cp = f.c_c ∩ p
     c_iface = Segment(c_cp.vertices[1], c_cp.vertices[2]) # NOTE: this assumes the polygon is convex
     # c_iface_area = measure(c_iface)
     c_iface_centroid = centroid(c_iface)
-    c_iface_tangent = tangent(c_iface)
+    tangent = [-p.𝛈[2], p.𝛈[1]]
 
-    dshift = c_iface_tangent ⋅ to(c_iface_centroid) # The shift derivative that ensures that the central volume is invariant
+    dshift = tangent ⋅ to(c_iface_centroid) # The shift derivative that ensures that the central volume is invariant
     for (c, α, cmeas) ∈ zip(f.cs, f.αs, f.cmeasures)
         cp = c ∩ p
         if isnothing(cp)
@@ -41,10 +41,10 @@ function (f::LVIRA)(p::PlanarHS{2})
         iface_area = measure(iface)
         iface_centroid = centroid(iface)
 
-        derr0_local = iface_area * (dshift - c_iface_tangent ⋅ to(iface_centroid))
+        derr_local = iface_area * (dshift - tangent ⋅ to(iface_centroid))
 
-        err0 += err_local^2
-        derr0 = derr0 + 2 * err_local * derr0_local / cmeas
+        err += err_local^2
+        derr = derr + 2 * err_local * derr_local / cmeas
     end
-    return err0, derr0
+    return err, derr
 end
