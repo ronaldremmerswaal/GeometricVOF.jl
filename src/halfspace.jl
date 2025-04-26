@@ -18,6 +18,12 @@ complement(p::PlanarHS) = PlanarHS(-p.𝛈, -p.shift)
 
 distance(p::PlanarHS{2}, 𝐱::Point) = p.𝛈[1] * 𝐱.coords.x + p.𝛈[2] * 𝐱.coords.y - p.shift
 
+function PlanarHS(θ::Real, αvol::Quantity, c::Ngon)
+    𝛈 = GeometricVOF.angle_to_normal(θ)
+    s = shift(c, 𝛈, αvol)
+    return PlanarHS{2}(𝛈, s)
+end
+
 import Base: intersect
 """
     intersect(c, p)
