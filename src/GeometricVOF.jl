@@ -17,5 +17,6 @@ include("halfspace.jl")
 include("reconstruction.jl")
 include("donating_region.jl")
 include("utils.jl")
+include("optimization.jl")
 
 end
