@@ -180,7 +180,7 @@ using Test
                 recon = LVIRA(collect(mesh), αs, mesh[5])
 
                 p0 = PlanarHS{2}(GeometricVOF.angle_to_normal(θ + 0.7), 0u"m")
-                p_recon = reconstruct(recon, mesh[5], αs[5] * measure(mesh[5]), p0)
+                p_recon = reconstruct(recon, αs[5] * measure(mesh[5]), p0)
 
                 @test isapprox(p_recon.shift, p_ref.shift, rtol=100eps())
                 @test isapprox(p_recon.𝛈, p_ref.𝛈, rtol=100eps())
@@ -203,7 +203,7 @@ using Test
                 xc = centroid(c)
                 θ0 = atan(xc.coords.y, xc.coords.x) + .1
                 p0 = PlanarHS{2}(GeometricVOF.angle_to_normal(θ0), 0u"m")
-                p_recon = reconstruct(recon, c, αs[i, j] * measure(c), p0)
+                p_recon = reconstruct(recon, αs[i, j] * measure(c), p0)
 
                 sd_err += symmetric_difference(Φ, p_recon, c)
             end

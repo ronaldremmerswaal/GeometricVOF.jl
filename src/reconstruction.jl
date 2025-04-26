@@ -1,12 +1,12 @@
 abstract type CostFunction end
 
-function reconstruct(cfun::CostFunction, c::Ngon, αvol::Quantity, p0::PlanarHS{2})
-    wrapped_cfun(θ::Real) = cfun(PlanarHS(θ, αvol, c))
+function reconstruct(cfun::CostFunction, αvol::Quantity, p0::PlanarHS{2})
+    wrapped_cfun(θ::Real) = cfun(PlanarHS(θ, αvol, cfun.c_c))
 
     θ0 = GeometricVOF.normal_to_angle(p0.𝛈)
     θ = brent_min(wrapped_cfun, θ0; xtol=1E-8, maxiters=25, step_max=.5)
 
-    return PlanarHS(θ, αvol, c)
+    return PlanarHS(θ, αvol, cfun.c_c)
 end
 
 struct LVIRA{T} <: CostFunction
