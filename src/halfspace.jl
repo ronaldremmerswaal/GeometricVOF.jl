@@ -129,16 +129,55 @@ shift(c::Ngon, 𝛈::Vector, α::Quantity) = shift(c, SVector{2}(𝛈), α)
 function shift(c::Ngon, 𝛈::SVector{2}, α::Quantity) # TODO constrain α to have units m^2
 
     α_err(shift) = measure(PlanarHS(𝛈, shift), c) - α
-    shift0 = 𝛈 ⋅ to(centroid(c))
-    α_err0 = α_err(shift0)
 
-    if α_err0 == 0u"m" return shift0 end
+    # Determine shift at each vertex
+    shifts = Vector{Quantity}(undef, length(c.vertices))
+    for (vdx, v) ∈ enumerate(c.vertices)
+        shifts[vdx] =  𝛈[1] * v.coords.x + 𝛈[2] * v.coords.y
+    end
 
-    shift_min, shift_max = shift_extrema(c, 𝛈)
+    # Evaluate the error function at the shifts
+    perm = sortperm(shifts)
+    shifts = shifts[perm]
+    α_err_prev = -α
+    if α_err_prev == 0u"m^2" return shifts[1] end
 
-    bracket = α_err0 > 0u"m^2" ? (shift_min, shift0) : (shift0, shift_max)
+    for i ∈ 2:length(c.vertices)
+        if i < length(c.vertices)
+            α_err_curr = α_err(shifts[i])
+        else
+            α_err_curr = measure(c) - α
+        end
 
-    return find_zero(α_err, bracket, Roots.Brent())
+        if α_err_curr == 0u"m^2" return shifts[i] end
+
+        if sign(α_err_curr) != sign(α_err_prev)
+            # We have found a sign change, so we can use the two shifts to bracket the root
+            shift0 = shifts[i - 1]
+            shift2 = shifts[i]
+            shift1 = (shift0 + shift2) / 2
+
+            # Moreover, the dependence in the bracket is quadratic, so 3 values are sufficient
+            α_err0 = ustrip(α_err_prev)
+            α_err1 = ustrip(α_err(shift1))
+            α_err2 = ustrip(α_err_curr)
+
+            h = ustrip(shift2 - shift1)
+            A = (.5α_err2 - α_err1 + .5α_err0) / h^2
+            B = (α_err2 - α_err0) / 2h
+            C = α_err1
+
+            rts = shift1 .+ roots(Polynomial([C, B, A]))u"m"
+
+            return shift0 ≤ rts[1] ≤ shift2 ? rts[1] : rts[2]
+        end
+
+        α_err_prev = α_err_curr
+    end
+
+    # bracket = α_err0 > 0u"m^2" ? (shift_min, shift0) : (shift0, shift_max)
+
+
 end
 
 function shift_extrema(c::Ngon, 𝛈::SVector{2})

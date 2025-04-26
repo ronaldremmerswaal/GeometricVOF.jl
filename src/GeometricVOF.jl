@@ -7,6 +7,7 @@ using Optim
 using Roots
 using Unitful
 using StaticArrays
+using Polynomials
 
 export PlanarHS, LVIRA
 export measure, intersect,  complement, shift, reconstruct, distance, donating_region,
