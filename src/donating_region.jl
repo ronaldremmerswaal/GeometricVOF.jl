@@ -56,10 +56,10 @@ function donating_region(s::Segment{𝔼{2}}, velo::AbstractVector{Vector{T}},
 
     poly = Quadrangle(v1, v2, v2_pre, v1_pre)
 
-    s_pre = Segment(v1_pre, v2_pre)
-    n = normal(s_pre)
-
     if !isnothing(α)
+        s_pre = Segment(v1_pre, v2_pre)
+        n = normal(s_pre)
+
         volume_err = smeasure(poly) - α
         dn = n * (2 *  volume_err / measure(s_pre))
         vmid_pre = v1_pre + (v2_pre - v1_pre) / 2 + Vec(dn...)
@@ -68,6 +68,7 @@ function donating_region(s::Segment{𝔼{2}}, velo::AbstractVector{Vector{T}},
     end
 
     # We split the DR into at most two parts: one positively oriented, one negatively
+    n = normal(s)
     hs = PlanarHS(n, n ⋅ to(v1))
     (poly ∩ hs, poly ∩ complement(hs))
 end

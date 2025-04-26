@@ -277,6 +277,10 @@ using Test
         @test drm ≈ Pentagon((0, 0), (0, 1), (dt / T, 1), (1.5dt / T, .5), (dt / T, 0))
         @test isnothing(drp)
 
+        # Self-intersection case
+        s = Segment((0, 0), (0, 1))
+        u(x, y) = U * [y/L-0.5, 0.]
+        drp, drm = donating_region(s, u, dt)
     end
 
 end
