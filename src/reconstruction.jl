@@ -44,7 +44,7 @@ function (f::LVIRA)(p::PlanarHS{2})
         derr_local = iface_area * (dshift - tangent ⋅ to(iface_centroid))
 
         err += err_local^2
-        derr = derr + 2 * err_local * derr_local / cmeas
+        derr += + 2 * err_local * derr_local / cmeas
     end
     return err, derr
 end
