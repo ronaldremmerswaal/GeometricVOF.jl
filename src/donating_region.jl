@@ -2,7 +2,7 @@ tangent(s::Segment{𝔼{2}}) = normalize(s.vertices[2] - s.vertices[1])
 
 function normal(s::Segment{𝔼{2}})
     𝐭 = tangent(s)
-    [-𝐭[2], 𝐭[1]]
+    [𝐭[2], -𝐭[1]]
 end
 
 """
@@ -60,7 +60,7 @@ function donating_region(s::Segment{𝔼{2}}, velo::AbstractVector{Vector{T}},
     n = normal(s_pre)
 
     if !isnothing(α)
-        volume_err = α - smeasure(poly)
+        volume_err = smeasure(poly) - α
         dn = n * (2 *  volume_err / measure(s_pre))
         vmid_pre = v1_pre + (v2_pre - v1_pre) / 2 + Vec(dn...)
 
@@ -69,5 +69,5 @@ function donating_region(s::Segment{𝔼{2}}, velo::AbstractVector{Vector{T}},
 
     # We split the DR into at most two parts: one positively oriented, one negatively
     hs = PlanarHS(n, n ⋅ to(v1))
-    (poly ∩ complement(hs), poly ∩ hs)
+    (poly ∩ hs, poly ∩ complement(hs))
 end
