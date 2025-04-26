@@ -7,7 +7,6 @@ function reconstruct(cfun::CostFunction, c::Ngon, αvol::Quantity, p0::PlanarHS{
     res = optimize(wrapped_cfun, [θ0], g_tol=1E-30, x_abstol=1E-6)
     # TODO implement linearization of cost function
 
-    # TODO make a conversion function: (θ, α) -> PlanarHS
     θ = res.minimizer[1]
 
     return PlanarHS(θ, αvol, c)
