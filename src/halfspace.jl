@@ -48,14 +48,10 @@ function Base.intersect(c::Ngon, p::PlanarHS{2})
     # Compute the distance of each vertex to the plane
     dist = zeros(nr_old_verts)u"m"
     nr_inside = 0
-    first_inside = 0
     for (vdx, vert) ∈ enumerate(c.vertices)
         dist[vdx] = distance(p, vert)
         if dist[vdx] ≤ 0u"m"
             nr_inside += 1
-            if first_inside == 0
-                first_inside = vdx
-            end
         end
     end
 
@@ -66,10 +62,24 @@ function Base.intersect(c::Ngon, p::PlanarHS{2})
         return c        # TODO no copy available
     end
 
+    # Find first bisected edge; this ensures that the first edge of the new polygon coincides
+    # with the HalfSpace
+    start_index = 0
+    for (vdx, d) ∈ enumerate(dist)
+        ndx = vdx == nr_old_verts ? 1 : vdx + 1
+        nd = dist[ndx]
+
+        edge_is_bisected = (d ≤ 0u"m") != (nd ≤ 0u"m")
+        if edge_is_bisected
+            start_index = vdx
+            break
+        end
+    end
+
     new_verts = Vector{eltype(c.vertices)}()
 
     # Construct new polygon by looping over the edges of the old polygon
-    vdx = first_inside
+    vdx = start_index
     for _ ∈ 1:nr_old_verts
         ndx = vdx == nr_old_verts ? 1 : vdx + 1
         edge_is_bisected = (dist[vdx] ≤ 0u"m") != (dist[ndx] ≤ 0u"m")

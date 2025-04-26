@@ -73,16 +73,31 @@ using Test
             # Quad to Quad
             c = Quadrangle((0, 0), (1, 0), (1, 1), (0, 1))
             p = PlanarHS{2}([0, 1], .5u"m")
-            @test c ∩ p == Quadrangle((1, 0), (1, .5), (0, .5), (0, 0))
+            cp = c ∩ p
+            @test cp == Quadrangle((1, .5), (0, .5), (0, 0), (1, 0))
+
+            # The first edge of the new polygon coincides with the HalfSpace
+            e1 = Segment(cp.vertices[1], cp.vertices[2])
+            @test GeometricVOF.normal(e1) == p.𝛈
 
             # Triangle to Quadrangle
-            tp = t ∩ PlanarHS([1, 0], .5u"m")
+            p = PlanarHS([1, 0], .5u"m")
+            tp = t ∩ p
             @test tp == Quadrangle((.5, 0), (.5, .5), (0, 1), (0, 0))
+
+            # The first edge of the new polygon coincides with the HalfSpace
+            e1 = Segment(tp.vertices[1], tp.vertices[2])
+            @test GeometricVOF.normal(e1) == p.𝛈
 
             # Non-convex case
             nc = Ngon((0, 0), (1, 0), (.5, .5), (1, 1), (0, 1))
-            ncp = nc ∩ PlanarHS([1, 0], .75u"m")
+            p = PlanarHS([1, 0], .75u"m")
+            ncp = nc ∩ p
             @test ncp == Ngon((.75, 0), (.75, .25), (.5, .5), (.75, .75), (.75, 1), (0, 1), (0, 0))
+
+            # The first edge of the new polygon coincides with the HalfSpace
+            e1 = Segment(ncp.vertices[1], ncp.vertices[2])
+            @test GeometricVOF.normal(e1) == p.𝛈
 
             # Edge case: colinear to edge, but all inside
             p = PlanarHS([1, 1] / √2, √.5u"m")
