@@ -177,7 +177,7 @@ using Test
                 # Initialize reference volumes
                 αs = [measure(p_ref, c) / measure(c) for c ∈ mesh]
 
-                recon = LVIRA(collect(mesh), αs, mesh[5])
+                recon = LVIRA(view(mesh, 1:9), αs, mesh[5])
 
                 p0 = PlanarHS{2}(GeometricVOF.angle_to_normal(θ + 0.7), 0u"m")
                 p_recon = reconstruct(recon, αs[5] * measure(mesh[5]), p0)
@@ -195,13 +195,15 @@ using Test
             h = 1 / N
             mesh = CartesianGrid((N, N), (-.5, -.5), (h, h))
 
+            inds = LinearIndices(size(mesh))
+
             αs = reshape([measure(Φ, c) / measure(c) for c ∈ mesh], (N, N))
             sd_err = 0u"m^2"
             for i = 2 : N-1, j = 2 : N-1
                 if αs[i, j] == 0 || αs[i, j] == 1
                     continue
                 end
-                recon = LVIRA(collect(mesh[i-1:i+1, j-1:j+1]), αs[i-1:i+1, j-1:j+1], mesh[i, j])
+                recon = LVIRA(view(mesh, inds[i-1:i+1, j-1:j+1][:]), αs[i-1:i+1, j-1:j+1], mesh[i, j])
                 c = mesh[i, j]
                 xc = centroid(c)
                 θ0 = atan(xc.coords.y, xc.coords.x) + .1

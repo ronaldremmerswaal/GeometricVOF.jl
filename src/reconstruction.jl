@@ -10,13 +10,13 @@ function reconstruct(cfun::CostFunction, αvol::Quantity, p0::PlanarHS{2})
 end
 
 struct LVIRA{T} <: CostFunction
-    cs::AbstractArray{Ngon}
+    cs::SubDomain
     αs::AbstractArray{T}
     cmeasures::AbstractArray{Quantity}
 
     c_c::Ngon # The `central' cell`
 end
-LVIRA(cs::AbstractArray{N}, αs::AbstractArray{T}, c_c::Ngon) where {N <: Ngon, T <: Real} =
+LVIRA(cs::SubDomain, αs::AbstractArray{T}, c_c::Ngon) where {T <: Real} =
     LVIRA{T}(cs, αs, measure.(cs), c_c)
 
 function (f::LVIRA)(p::PlanarHS{2})
