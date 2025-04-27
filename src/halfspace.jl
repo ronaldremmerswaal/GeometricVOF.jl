@@ -41,7 +41,7 @@ Triangle
 └─ Point(x: 1.0 m, y: 0.0 m)
 ```
 """
-function Base.intersect(c::Ngon, p::PlanarHS{2})
+function Base.intersect(c::Ngon, p::PlanarHS{2}; tol::Real=√eps(typeof(c.vertices[1].coords.x.val)))
 
     nr_old_verts = length(vertices(c))
 
@@ -86,7 +86,7 @@ function Base.intersect(c::Ngon, p::PlanarHS{2})
 
         if edge_is_bisected
             coeff = abs(dist[vdx] / (dist[ndx] - dist[vdx]))
-            if (coeff < 1 || dist[ndx] > 0u"m") && (coeff > 0 || dist[vdx] > 0u"m")
+            if (coeff < 1 - tol || dist[ndx] > 0u"m") && (coeff > tol || dist[vdx] > 0u"m")
                 push!(new_verts, c.vertices[vdx] +
                     coeff * (c.vertices[ndx] - c.vertices[vdx]))
             end
