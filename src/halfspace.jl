@@ -86,7 +86,8 @@ function Base.intersect(c::Ngon, p::PlanarHS{2}; tol::Real=√eps(typeof(c.verti
 
         if edge_is_bisected
             coeff = abs(dist[vdx] / (dist[ndx] - dist[vdx]))
-            if (coeff < 1 - tol || dist[ndx] > 0u"m") && (coeff > tol || dist[vdx] > 0u"m")
+            if (coeff < 1 - tol || (dist[ndx] > 0u"m" && coeff > tol)) &&
+               (coeff > tol || (dist[vdx] > 0u"m" && coeff < 1 - tol))
                 push!(new_verts, c.vertices[vdx] +
                     coeff * (c.vertices[ndx] - c.vertices[vdx]))
             end
