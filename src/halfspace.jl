@@ -194,3 +194,30 @@ function shift_extrema(c::Ngon, 𝛈::SVector{2})
     end
     return shift_min, shift_max
 end
+
+"""
+    sorted_unique_approx(c::Ngon; tol::Real)
+
+Remove subsequent vertices that are approximately equal to each other.
+"""
+function sorted_unique_approx(c::Ngon; tol::Real=√eps(typeof(c.vertices[1].coords.x.val)))
+    vs = vertices(c)
+    rm_indices = Vector{Int}()
+
+    for (vdx, v1) ∈ enumerate(vs)
+        v2 = vs[vdx == length(vs) ? 1 : vdx + 1]
+
+        if ustrip(abs(v1.coords.x - v2.coords.x)) < tol && ustrip(abs(v1.coords.y - v2.coords.y)) < tol
+            push!(rm_indices, vdx)
+        end
+    end
+
+    if isempty(rm_indices)
+        return c
+    elseif length(vs) - length(rm_indices) < 3
+        return nothing
+    else
+        return Ngon(vs[setdiff(1:length(vs), rm_indices)]...)
+    end
+
+end
