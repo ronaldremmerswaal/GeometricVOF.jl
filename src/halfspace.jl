@@ -21,9 +21,9 @@ complement(p::PlanarHS) = PlanarHS(-p.𝛈, -p.shift)
 
 distance(p::PlanarHS, 𝐱::Point) = p.𝛈[1] * 𝐱.coords.x + p.𝛈[2] * 𝐱.coords.y - p.shift
 
-function PlanarHS(θ::T, αvol::Quantity, c::Ngon) where {T <: Real}
+function PlanarHS(θ::T, αvol::Quantity, c::Ngon; workspace::StaticNgon=StaticNgon(c)) where {T <: Real}
     𝛈 = GeometricVOF.angle_to_normal(θ)
-    s = shift(c, 𝛈, αvol)
+    s = shift(c, 𝛈, αvol; workspace=workspace)
     return PlanarHS{2}(𝛈, s)
 end
 
@@ -44,84 +44,27 @@ Triangle
 └─ Point(x: 1.0 m, y: 0.0 m)
 ```
 """
-function Base.intersect(c::Ngon, p::PlanarHS{2}; tol::Real=√eps(typeof(c.vertices[1].coords.x.val)))
 
-    nr_old_verts = length(vertices(c))
-
-    # Compute the distance of each vertex to the plane
-    dist = zeros(nr_old_verts)u"m"
-    nr_inside = 0
-    for (vdx, vert) ∈ enumerate(c.vertices)
-        dist[vdx] = distance(p, vert)
-        if dist[vdx] ≤ 0u"m"
-            nr_inside += 1
-        end
-    end
-
-    # Quick return in trivial cases
-    if nr_inside == 0
-        return nothing  # TODO type stability
-    elseif nr_inside == length(c.vertices)
-        return c        # TODO no copy available
-    end
-
-    # Find first bisected edge; this ensures that the first edge of the new polygon coincides
-    # with the HalfSpace
-    start_index = 0
-    for (vdx, d) ∈ enumerate(dist)
-        ndx = vdx == nr_old_verts ? 1 : vdx + 1
-        nd = dist[ndx]
-
-        edge_is_bisected = (d ≤ 0u"m") != (nd ≤ 0u"m")
-        if edge_is_bisected
-            start_index = vdx
-            break
-        end
-    end
-
-    new_verts = Vector{eltype(c.vertices)}()
-
-    # Construct new polygon by looping over the edges of the old polygon
-    vdx = start_index
-    for _ ∈ 1:nr_old_verts
-        ndx = vdx == nr_old_verts ? 1 : vdx + 1
-
-        v_inside = dist[vdx] ≤ 0u"m"
-        n_inside = dist[ndx] ≤ 0u"m"
-        edge_is_bisected = v_inside != n_inside
-
-        if edge_is_bisected
-            coeff = abs(dist[vdx] / (dist[ndx] - dist[vdx]))
-            if (v_inside && coeff > tol) ||
-               (n_inside && coeff < 1 - tol)
-                push!(new_verts, c.vertices[vdx] +
-                    coeff * (c.vertices[ndx] - c.vertices[vdx]))
-            end
-        end
-
-        if n_inside
-            push!(new_verts, c.vertices[ndx])
-        end
-
-        vdx = ndx
-    end
-
-    if length(new_verts) < 3
-        return nothing
-    else
-        return Ngon(new_verts...)
-    end
+mutable struct StaticNgon{N, P}
+    vertices::MVector{N, P}
+    nr_verts::Int64
+    interface_index::Int64
 end
+StaticNgon(P, N::Int=32) = StaticNgon{N, P}(MVector{N, P}(undef), 0, 0)
+StaticNgon(p::Ngon, N::Int=32) = StaticNgon(eltype(p.vertices), N)
 
-function Base.intersect!(verts_inout::MVector{N, P}, c::Ngon, p::PlanarHS{2}; tol::Real=√eps(typeof(c.vertices[1].coords.x.val))) where {N, P<:Point}
+Base.intersect(c::Ngon, p::PlanarHS{2}; kwargs...) =
+    Base.intersect!(StaticNgon(eltype(c.vertices)), c, p; kwargs...)
+
+function Base.intersect!(out::StaticNgon{N, P}, c::Ngon, p::PlanarHS{2}; tol::Real=√eps(typeof(c.vertices[1].coords.x.val))) where {N, P<:Point}
 
     nr_old_verts = length(vertices(c))
 
     # Construct new polygon by looping over the edges of the old polygon
-    nr_new = 0
+    out.nr_verts = 0
     next_dist = 0u"m"
     next_inside = false
-    interface_index = 0
+    out.interface_index = 0
     for (cdx, curr_vert) ∈ enumerate(c.vertices)
         ndx = mod1(cdx + 1, nr_old_verts)
 
@@ -137,8 +80,8 @@ function Base.intersect!(verts_inout::MVector{N, P}, c::Ngon, p::PlanarHS{2}; to
         next_inside = next_dist ≤ 0u"m"
 
         if curr_inside
-            nr_new += 1
-            verts_inout[nr_new] = curr_vert
+            out.nr_verts += 1
+            out.vertices[out.nr_verts] = curr_vert
         end
 
         edge_is_bisected = curr_inside != next_inside
@@ -147,40 +90,35 @@ function Base.intersect!(verts_inout::MVector{N, P}, c::Ngon, p::PlanarHS{2}; to
             coeff = abs(curr_dist / (next_dist - curr_dist))
             if (curr_inside && coeff > tol) ||
                (next_inside && coeff < 1 - tol)
-                nr_new += 1
-                verts_inout[nr_new] = curr_vert + coeff * (next_vert - curr_vert)
+                out.nr_verts += 1
+                out.vertices[out.nr_verts] = curr_vert + coeff * (next_vert - curr_vert)
 
-                if interface_index == 0
+                if out.interface_index == 0
                     if curr_inside
-                        interface_index = nr_new - 1
+                        out.interface_index = out.nr_verts - 1
                     else
-                        interface_index = nr_new
+                        out.interface_index = out.nr_verts
                     end
                 end
             end
         end
     end
 
-    return verts_inout, nr_new, interface_index
+    return out
 end
 
-function measure(verts::MVector{N, P}, n::Int) where {N, P<:Point}
+function measure(poly::StaticNgon{N, P}) where {N, P<:Point}
     M = 0u"m^2"
-    if n < 3
+    if poly.nr_verts < 3
         return M
     end
 
-    for vdx = 1:n
-        v1 = verts[vdx]
-        v2 = verts[mod1(vdx + 1, n)]
+    for vdx = 1:poly.nr_verts
+        v1 = poly.vertices[vdx]
+        v2 = poly.vertices[mod1(vdx + 1, poly.nr_verts)]
         M += v1.coords.x * v2.coords.y - v1.coords.y * v2.coords.x
     end
     M /= 2
-end
-
-function measure(p::PlanarHS{2}, c::Ngon)
-    cp = c ∩ p
-    isnothing(cp) ? 0u"m^2" : measure(cp)
 end
 
 
@@ -198,9 +136,9 @@ julia> shift(c, [1.0, 0.0], 0.21875u"m^2")
 ```
 """
 shift(c::Ngon, 𝛈::Vector, α::Quantity) = shift(c, SVector{2}(𝛈), α)
-function shift(c::Ngon, 𝛈::SVector{2}, α::Quantity) # TODO constrain α to have units m^2
+function shift(c::Ngon, 𝛈::SVector{2}, α::Quantity; workspace::StaticNgon=StaticNgon(c)) # TODO constrain α to have units m^2
 
-    cp_memory = MVector{30, eltype(c.vertices)}(undef)
+    α_err(p) = measure(intersect!(workspace, c, p)) - α
 
     # Determine shift at each vertex
     n_verts = length(c.vertices)
@@ -220,9 +158,7 @@ function shift(c::Ngon, 𝛈::SVector{2}, α::Quantity) # TODO constrain α to h
         if i == n_verts
             α_err_curr = measure(c) - α
         else
-            hs = PlanarHS{2}(𝛈, shifts[perm[i]]u"1m")
-            cp_memory, cp_length, = intersect!(cp_memory, c, hs)
-            α_err_curr = measure(cp_memory, cp_length) - α
+            α_err_curr = α_err(PlanarHS{2}(𝛈, shifts[perm[i]]u"1m"))
         end
 
         if α_err_curr == 0u"m^2" return shifts[perm[i]]u"1m" end
@@ -233,12 +169,9 @@ function shift(c::Ngon, 𝛈::SVector{2}, α::Quantity) # TODO constrain α to h
             shift2 = shifts[perm[i]]u"1m"
             shift1 = (shift0 + shift2) / 2
 
-            hs = PlanarHS{2}(𝛈, shift1)
-            cp_memory, cp_length, = intersect!(cp_memory, c, hs)
-
             # Moreover, the dependence in the bracket is quadratic, so 3 values are sufficient
             α_err0 = ustrip(α_err_prev)
-            α_err1 = ustrip(measure(cp_memory, cp_length) - α)
+            α_err1 = ustrip(α_err(PlanarHS{2}(𝛈, shift1)))
             α_err2 = ustrip(α_err_curr)
 
             h = ustrip(shift2 - shift1)

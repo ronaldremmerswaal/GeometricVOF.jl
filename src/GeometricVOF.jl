@@ -8,8 +8,9 @@ using Roots
 using Unitful
 using StaticArrays
 using Polynomials
+using ForwardMethods
 
-export PlanarHS, LVIRA
+export PlanarHS, LVIRA, StaticNgon
 export measure, intersect, intersect!,  complement, shift, reconstruct, distance, donating_region,
     smeasure, symmetric_difference, normal, tangent, sorted_unique_approx
 

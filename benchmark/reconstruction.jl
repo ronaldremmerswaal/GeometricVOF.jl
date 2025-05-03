@@ -1,4 +1,6 @@
 using GeometricVOF
+using Unitful
+using Meshes
 
 function reconstruction_prep(;N=2^6)
     R = 0.25u"m"
@@ -16,6 +18,7 @@ end
 
 function reconstruction_benchmark(mesh, inds, αs; α_tol=1E-8)
     recons = PlanarHS[]
+    workspace = StaticNgon(mesh[1])
     for i = 2 : size(inds, 1)-1, j = 2 : size(inds, 2)-1
         if αs[i, j] < α_tol || αs[i, j] > 1 - α_tol
             continue
@@ -25,9 +28,12 @@ function reconstruction_benchmark(mesh, inds, αs; α_tol=1E-8)
         θ0 = atan(xc.coords.y, xc.coords.x) + .1
         p0 = PlanarHS(GeometricVOF.angle_to_normal(θ0), 0u"m")
 
-        p_recon = reconstruct(p0, αs[i, j], c, view(αs, i-1:i+1, j-1:j+1), view(mesh, inds[i-1:i+1, j-1:j+1][:]))
+        p_recon = reconstruct(p0, αs[i, j], c, view(αs, i-1:i+1, j-1:j+1), view(mesh, inds[i-1:i+1, j-1:j+1][:]); workspace=workspace)
         push!(recons, p_recon)
     end
 
     recons
 end
+
+mesh, inds, αs = reconstruction_prep()
+@benchmark reconstruction_benchmark($mesh, $inds, $αs)
