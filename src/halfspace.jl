@@ -112,44 +112,46 @@ function Base.intersect(c::Ngon, p::PlanarHS{2}; tol::Real=√eps(typeof(c.verti
     end
 end
 
-function Base.intersect!(c_out::MVector{N, P}, c::Ngon, p::PlanarHS{2}; tol::Real=√eps(typeof(c.vertices[1].coords.x.val))) where {N, P<:Point}
+function Base.intersect!(verts_inout::MVector{N, P}, c::Ngon, p::PlanarHS{2}; tol::Real=√eps(typeof(c.vertices[1].coords.x.val))) where {N, P<:Point}
 
     nr_old_verts = length(vertices(c))
 
     # Construct new polygon by looping over the edges of the old polygon
     nr_new = 0
-    dist_n = 0u"m"
-    for (vdx, vert_v) ∈ enumerate(c.vertices)
-        ndx = mod1(vdx + 1, nr_old_verts)
+    next_dist = 0u"m"
+    next_inside = false
+    for (cdx, curr_vert) ∈ enumerate(c.vertices)
+        ndx = mod1(cdx + 1, nr_old_verts)
 
-        if vdx == 1
-            dist_v = distance(p, vert_v)
+        if cdx == 1
+            curr_dist = distance(p, curr_vert)
+            curr_inside = next_inside
         else
-            dist_v = dist_n
+            curr_dist = next_dist
+            curr_inside = curr_dist ≤ 0u"m"
         end
-        vert_n = c.vertices[ndx]
-        dist_n = distance(p, vert_n)
+        next_vert = c.vertices[ndx]
+        next_dist = distance(p, next_vert)
+        next_inside = next_dist ≤ 0u"m"
 
-        v_inside = dist_v ≤ 0u"m"
-        n_inside = dist_n ≤ 0u"m"
-        edge_is_bisected = v_inside != n_inside
+        edge_is_bisected = curr_inside != next_inside
 
         if edge_is_bisected
-            coeff = abs(dist_v / (dist_n - dist_v))
-            if (v_inside && coeff > tol) ||
-               (n_inside && coeff < 1 - tol)
+            coeff = abs(curr_dist / (next_dist - curr_dist))
+            if (curr_inside && coeff > tol) ||
+               (next_inside && coeff < 1 - tol)
                 nr_new += 1
-                c_out[nr_new] = vert_v + coeff * (vert_n - vert_v)
+                verts_inout[nr_new] = curr_vert + coeff * (next_vert - curr_vert)
             end
         end
 
-        if n_inside
+        if next_inside
             nr_new += 1
-            c_out[nr_new] = vert_n
+            verts_inout[nr_new] = next_vert
         end
     end
 
-    return c_out, nr_new
+    return verts_inout, nr_new
 end
 
 function measure(p::PlanarHS{2}, c::Ngon)
