@@ -47,8 +47,8 @@ end
 function parabola_roots(A::T, B::T, C::T) where T
 
     imag = zero(T)
-    if A == 0 then
-        if (B == 0) then
+    if A == 0
+        if B == 0
             x1 = NaN
             x2 = NaN
         else
