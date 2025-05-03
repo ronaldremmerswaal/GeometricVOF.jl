@@ -143,30 +143,28 @@ function shift(c::Ngon, 𝛈::SVector{2}, αvol::Quantity; workspace::StaticNgon
     # Determine shift at each vertex
     n_verts = length(c.vertices)
     shifts = MVector{30, Float64}(undef)
-    perm = MVector{30, Int64}(undef)
     for (vdx, v) ∈ enumerate(c.vertices)
         shifts[vdx] = ustrip(𝛈[1] * v.coords.x + 𝛈[2] * v.coords.y)
     end
 
     # Evaluate the error function at the shifts
-    sortperm!(view(perm, 1:n_verts), view(shifts, 1:n_verts))
-    # shifts = shifts[perm]
+    sort!(view(shifts, 1:n_verts))
     α_err_prev = -αvol
-    if α_err_prev == 0u"m^2" return shifts[perm[1]]u"1m" end
+    if α_err_prev == 0u"m^2" return shifts[1]u"1m" end
 
     for i ∈ 2:n_verts
         if i == n_verts
             α_err_curr = smeasure(c) - αvol
         else
-            α_err_curr = α_err(PlanarHS{2}(𝛈, shifts[perm[i]]u"1m"))
+            α_err_curr = α_err(PlanarHS{2}(𝛈, shifts[i]u"1m"))
         end
 
-        if α_err_curr == 0u"m^2" return shifts[perm[i]]u"1m" end
+        if α_err_curr == 0u"m^2" return shifts[i]u"1m" end
 
         if sign(α_err_curr) != sign(α_err_prev)
             # We have found a sign change, so we can use the two shifts to bracket the root
-            shift0 = shifts[perm[i - 1]]u"1m"
-            shift2 = shifts[perm[i]]u"1m"
+            shift0 = shifts[i - 1]u"1m"
+            shift2 = shifts[i]u"1m"
             shift1 = (shift0 + shift2) / 2
 
             # Moreover, the dependence in the bracket is quadratic, so 3 values are sufficient
