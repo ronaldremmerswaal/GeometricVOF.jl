@@ -36,7 +36,7 @@ function PlanarHS(θ::T, αvol::Quantity, c::Ngon; workspace::StaticNgon=StaticN
 end
 
 function PlanarHS(v1::Point, v2::Point)
-    𝛈 = GeometricVOF.angle_to_normal(atan(v2.coords.y - v1.coords.y, v2.coords.x - v1.coords.x))
+    𝛈 = GeometricVOF.angle_to_normal(atan(v1.coords.x - v2.coords.x, v2.coords.y - v1.coords.y))
     return PlanarHS{2}(𝛈, 𝛈 ⋅ to(v1))
 end
 
