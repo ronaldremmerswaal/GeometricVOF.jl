@@ -2,7 +2,7 @@ using GeometricVOF
 using Unitful
 using Meshes
 
-function reconstruction_prep(;N=2^6)
+function reconstruction_prep(;N=2^9)
     R = 0.25u"m"
     Φ(x, y) = (x - .5u"m")^2 + (y - .5u"m")^2 - R^2 * (1 + .1cos(.1 + 5atan(y - .5u"m", x - .5u"m")))^2
 
