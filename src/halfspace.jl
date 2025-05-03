@@ -209,11 +209,18 @@ function shift(c::Ngon, 𝛈::SVector{2}, αvol::Quantity; workspace::StaticNgon
     # Evaluate the error function at the shift_workspace
     sort!(view(shift_workspace, 1:n_verts))
     α_err_prev = -αvol
-    if α_err_prev == 0u"m^2" return shift_workspace[1]u"1m" end
+
+    c_measure = smeasure(c)
+
+    if αvol == 0u"m^2"
+        return shift_workspace[1]u"1m"
+    elseif αvol == c_measure
+        return shift_workspace[n_verts]u"1m"
+    end
 
     for i ∈ 2:n_verts
         if i == n_verts
-            α_err_curr = smeasure(c) - αvol
+            α_err_curr = c_measure - αvol
         else
             α_err_curr = α_err(PlanarHS{2}(𝛈, shift_workspace[i]u"1m"))
         end
