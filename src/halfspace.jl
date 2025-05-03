@@ -203,32 +203,34 @@ function shift(c::Ngon, 𝛈::SVector{2}, α::Quantity) # TODO constrain α to h
     cp_memory = MVector{30, eltype(c.vertices)}(undef)
 
     # Determine shift at each vertex
-    shifts = Vector{Quantity}(undef, length(c.vertices))
+    n_verts = length(c.vertices)
+    shifts = MVector{30, Float64}(undef)
+    perm = MVector{30, Int64}(undef)
     for (vdx, v) ∈ enumerate(c.vertices)
-        shifts[vdx] =  𝛈[1] * v.coords.x + 𝛈[2] * v.coords.y
+        shifts[vdx] = ustrip(𝛈[1] * v.coords.x + 𝛈[2] * v.coords.y)
     end
 
     # Evaluate the error function at the shifts
-    perm = sortperm(shifts)
-    shifts = shifts[perm]
+    sortperm!(view(perm, 1:n_verts), view(shifts, 1:n_verts))
+    # shifts = shifts[perm]
     α_err_prev = -α
-    if α_err_prev == 0u"m^2" return shifts[1] end
+    if α_err_prev == 0u"m^2" return shifts[perm[1]]u"1m" end
 
-    for i ∈ 2:length(c.vertices)
-        if i < length(c.vertices)
-            hs = PlanarHS{2}(𝛈, shifts[i])
+    for i ∈ 2:n_verts
+        if i == n_verts
+            α_err_curr = measure(c) - α
+        else
+            hs = PlanarHS{2}(𝛈, shifts[perm[i]]u"1m")
             cp_memory, cp_length, = intersect!(cp_memory, c, hs)
             α_err_curr = measure(cp_memory, cp_length) - α
-        else
-            α_err_curr = measure(c) - α
         end
 
-        if α_err_curr == 0u"m^2" return shifts[i] end
+        if α_err_curr == 0u"m^2" return shifts[perm[i]]u"1m" end
 
         if sign(α_err_curr) != sign(α_err_prev)
             # We have found a sign change, so we can use the two shifts to bracket the root
-            shift0 = shifts[i - 1]
-            shift2 = shifts[i]
+            shift0 = shifts[perm[i - 1]]u"1m"
+            shift2 = shifts[perm[i]]u"1m"
             shift1 = (shift0 + shift2) / 2
 
             hs = PlanarHS{2}(𝛈, shift1)
