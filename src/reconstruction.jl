@@ -19,7 +19,7 @@ function lvira_costfun(p::PlanarHS{2}, cs::SubDomain, αs::AbstractArray{T}, cme
     c_iface = Segment(workspace.vertices[workspace.interface_index], workspace.vertices[mod1(workspace.interface_index + 1, workspace.nr_verts)]) # NOTE: this assumes the polygon is convex
     # c_iface_area = measure(c_iface)
     c_iface_centroid = centroid(c_iface)
-    tangent = [-p.𝛈[2], p.𝛈[1]]
+    tangent_x = SVector(-p.𝛈[2], p.𝛈[1])
 
     dshift = tangent ⋅ to(c_iface_centroid) # The shift derivative that ensures that the central volume is invariant
     for (c, α, cmeas) ∈ zip(cs, αs, cmeasures)
