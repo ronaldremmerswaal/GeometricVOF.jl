@@ -20,12 +20,12 @@ function reconstruction_benchmark(mesh, inds, αs; α_tol=1E-8)
         if αs[i, j] < α_tol || αs[i, j] > 1 - α_tol
             continue
         end
-        recon = LVIRA(view(mesh, inds[i-1:i+1, j-1:j+1][:]), view(αs, i-1:i+1, j-1:j+1), mesh[i, j])
         c = mesh[i, j]
         xc = centroid(c)
         θ0 = atan(xc.coords.y, xc.coords.x) + .1
         p0 = PlanarHS(GeometricVOF.angle_to_normal(θ0), 0u"m")
-        p_recon = reconstruct(recon, αs[i, j] * measure(c), p0)
+
+        p_recon = reconstruct(p0, αs[i, j], c, view(mesh, inds[i-1:i+1, j-1:j+1][:]), view(αs, i-1:i+1, j-1:j+1))
         push!(recons, p_recon)
     end
 

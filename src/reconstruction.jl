@@ -1,30 +1,19 @@
-abstract type CostFunction end
-
-function reconstruct(cfun::CostFunction, αvol::Quantity, p0::PlanarHS{2})
-    wrapped_cfun(θ::Real) = cfun(PlanarHS(θ, αvol, cfun.c_c))
+function reconstruct(p0::PlanarHS{2}, α_central::T, c_central::Ngon, cs::SubDomain, αs::AbstractArray{T}, cmeasures::AbstractArray{Q}=measure.(cs)) where {T <: Real, Q <: Quantity}
+    ref_vol = measure(c_central) * α_central
+    wrapped_costfun(θ::Real) = lvira_costfun(PlanarHS(θ, ref_vol, c_central), cs, αs, cmeasures, c_central)
 
     θ0 = GeometricVOF.normal_to_angle(p0.𝛈)
-    θ = brent_min(wrapped_cfun, θ0; xtol=1E-8, maxiters=25, step_max=.5)
+    θ = brent_min(wrapped_costfun, θ0; xtol=1E-8, maxiters=25, step_max=.5)
 
-    return PlanarHS(θ, αvol, cfun.c_c)
+    return PlanarHS(θ, ref_vol, c_central)
 end
 
-struct LVIRA{T} <: CostFunction
-    cs::SubDomain
-    αs::AbstractArray{T}
-    cmeasures::AbstractArray{Quantity}
-
-    c_c::Ngon # The `central' cell`
-end
-LVIRA(cs::SubDomain, αs::AbstractArray{T}, c_c::Ngon) where {T <: Real} =
-    LVIRA{T}(cs, αs, measure.(cs), c_c)
-
-function (f::LVIRA)(p::PlanarHS{2})
+function lvira_costfun(p::PlanarHS{2}, cs::SubDomain, αs::AbstractArray{T}, cmeasures::AbstractArray{Q}, c_central::Ngon) where {T <: Real, Q <: Quantity}
     err = 0    # Value
     derr = 0   # Derivative w.r.t. the angle
 
-    cp_memory = MVector{30, eltype(f.c_c.vertices)}(undef)
-    cp_memory, cp_length, cp_interface = intersect!(cp_memory, f.c_c, p)
+    cp_memory = MVector{30, eltype(c_central.vertices)}(undef)
+    cp_memory, cp_length, cp_interface = intersect!(cp_memory, c_central, p)
 
     c_iface = Segment(cp_memory[cp_interface], cp_memory[mod1(cp_interface + 1, cp_length)]) # NOTE: this assumes the polygon is convex
     # c_iface_area = measure(c_iface)
@@ -32,7 +21,7 @@ function (f::LVIRA)(p::PlanarHS{2})
     tangent = [-p.𝛈[2], p.𝛈[1]]
 
     dshift = tangent ⋅ to(c_iface_centroid) # The shift derivative that ensures that the central volume is invariant
-    for (c, α, cmeas) ∈ zip(f.cs, f.αs, f.cmeasures)
+    for (c, α, cmeas) ∈ zip(cs, αs, cmeasures)
         cp_memory, cp_length, cp_interface = intersect!(cp_memory, c, p)
         if cp_length < 3
             continue
