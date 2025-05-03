@@ -121,6 +121,7 @@ function Base.intersect!(verts_inout::MVector{N, P}, c::Ngon, p::PlanarHS{2}; to
     nr_new = 0
     next_dist = 0u"m"
     next_inside = false
+    interface_index = 0
     for (cdx, curr_vert) ∈ enumerate(c.vertices)
         ndx = mod1(cdx + 1, nr_old_verts)
 
@@ -135,6 +136,11 @@ function Base.intersect!(verts_inout::MVector{N, P}, c::Ngon, p::PlanarHS{2}; to
         next_dist = distance(p, next_vert)
         next_inside = next_dist ≤ 0u"m"
 
+        if curr_inside
+            nr_new += 1
+            verts_inout[nr_new] = curr_vert
+        end
+
         edge_is_bisected = curr_inside != next_inside
 
         if edge_is_bisected
@@ -143,16 +149,19 @@ function Base.intersect!(verts_inout::MVector{N, P}, c::Ngon, p::PlanarHS{2}; to
                (next_inside && coeff < 1 - tol)
                 nr_new += 1
                 verts_inout[nr_new] = curr_vert + coeff * (next_vert - curr_vert)
-            end
-        end
 
-        if next_inside
-            nr_new += 1
-            verts_inout[nr_new] = next_vert
+                if interface_index == 0
+                    if curr_inside
+                        interface_index = nr_new - 1
+                    else
+                        interface_index = nr_new
+                    end
+                end
+            end
         end
     end
 
-    return verts_inout, nr_new
+    return verts_inout, nr_new, interface_index
 end
 
 function measure(verts::MVector{N, P}, n::Int) where {N, P<:Point}
