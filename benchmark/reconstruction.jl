@@ -12,7 +12,7 @@ function reconstruction_prep(;N=2^9)
     mesh = CartesianGrid((N, N), (0., 0.), (hx, hy))
 
     inds = LinearIndices(size(mesh))
-    αs = reshape([measure(Φ, c) / measure(c) for c ∈ mesh], (N, N))
+    αs = reshape([smeasure(Φ, c) / smeasure(c) for c ∈ mesh], (N, N))
 
     return mesh, inds, αs
 end

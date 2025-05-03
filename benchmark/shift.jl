@@ -8,7 +8,7 @@ using Meshes
 quad = Quadrangle((-.1, -.1), (.9, -.1), (.9, .9), (-.1, .9))
 
 workspace = StaticNgon(tri)
-αvol = measure(quad) / π
+αvol = smeasure(quad) / π
 
 shifts = MVector{30, Float64}(undef)
 
