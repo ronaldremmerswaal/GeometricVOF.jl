@@ -113,7 +113,7 @@ function Base.intersect(c::Ngon, p::PlanarHS{2}; tol::Real=√eps(typeof(c.verti
     end
 end
 
-function Base.intersect!(c_out::MVector{N, P}, c::Ngon, normal::SVector{D}, shift::Quantity; tol::Real=√eps(typeof(c.vertices[1].coords.x.val))) where {N, P<:Point, D}
+function Base.intersect!(c_out::MVector{N, P}, c::Ngon, normal::SVector{2}, shift::Quantity; tol::Real=√eps(typeof(c.vertices[1].coords.x.val))) where {N, P<:Point}
 
     nr_old_verts = length(vertices(c))
 
