@@ -189,7 +189,7 @@ using Test
 
         # Test accuracy of reconstruction of flower shape
         R = 0.3u"m"
-        Φ(x, y) = x^2 + y^2 - R^2 * (1 + .1sin(.1 + atan(y, x)))^2
+        Φ(x, y) = x^2 + y^2 - R^2 * (1 + .1sin(.1 + 5atan(y, x)))^2
         sd_errs = Vector{Float64}()u"m^2"
         for N ∈ 2 .^(4 : 6)
             h = 1 / N
