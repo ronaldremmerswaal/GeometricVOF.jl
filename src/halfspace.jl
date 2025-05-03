@@ -9,16 +9,16 @@ Represents the half-space defined by
 
     𝛈 ⋅ 𝐱 ≤ shift
 """
-struct PlanarHS{D} <: HalfSpace{D}
-    𝛈::SVector{D}
-    shift::Quantity
+struct PlanarHS{D, V, Q} <: HalfSpace{D}
+    𝛈::V
+    shift::Q
 end
 # PlanarHS(𝛈::Vector, shift::Number) = PlanarHS{length(𝛈)}(SVector{length(𝛈)}(𝛈), shift * u"m")
-PlanarHS(𝛈::Vector, shift::Quantity) = PlanarHS{length(𝛈)}(SVector{length(𝛈)}(𝛈), shift)
+PlanarHS(𝛈::V, shift::Q) where {V <: AbstractVector, Q <: Quantity} = PlanarHS{length(𝛈), V, Q}(SVector{length(𝛈)}(𝛈), shift)
 
 complement(p::PlanarHS) = PlanarHS(-p.𝛈, -p.shift)
 
-distance(p::PlanarHS{2}, 𝐱::Point) = p.𝛈[1] * 𝐱.coords.x + p.𝛈[2] * 𝐱.coords.y - p.shift
+distance(p::PlanarHS, 𝐱::Point) = p.𝛈[1] * 𝐱.coords.x + p.𝛈[2] * 𝐱.coords.y - p.shift
 distance(𝛈::SVector{D}, shift::Quantity, 𝐱::Point) where D = 𝛈[1] * 𝐱.coords.x + 𝛈[2] * 𝐱.coords.y - shift
 
 function PlanarHS(θ::Real, αvol::Quantity, c::Ngon)
@@ -113,7 +113,7 @@ function Base.intersect(c::Ngon, p::PlanarHS{2}; tol::Real=√eps(typeof(c.verti
     end
 end
 
-function Base.intersect!(c_out::MVector{N, P}, c::Ngon, normal::SVector{2}, shift::Quantity; tol::Real=√eps(typeof(c.vertices[1].coords.x.val))) where {N, P<:Point}
+function Base.intersect!(c_out::MVector{N, P}, c::Ngon, p::PlanarHS{2}; tol::Real=√eps(typeof(c.vertices[1].coords.x.val))) where {N, P<:Point}
 
     nr_old_verts = length(vertices(c))
 
@@ -124,12 +124,12 @@ function Base.intersect!(c_out::MVector{N, P}, c::Ngon, normal::SVector{2}, shif
         ndx = mod1(vdx + 1, nr_old_verts)
 
         if vdx == 1
-            dist_v = distance(normal, shift, vert_v)
+            dist_v = distance(p.𝛈, p.shift, vert_v)
         else
             dist_v = dist_n
         end
         vert_n = c.vertices[ndx]
-        dist_n = distance(normal, shift, vert_n)
+        dist_n = distance(p.𝛈, p.shift, vert_n)
 
         v_inside = dist_v ≤ 0u"m"
         n_inside = dist_n ≤ 0u"m"
