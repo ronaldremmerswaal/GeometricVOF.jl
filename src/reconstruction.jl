@@ -27,7 +27,7 @@ function lvira_costfun(p::PlanarHS{2}, cs::SubDomain, αs::AbstractArray{T}, cme
         if workspace.nr_verts < 3
             continue
         end
-        err_local = measure(workspace) / cmeas - α
+        err_local = smeasure(workspace) / cmeas - α
 
         # If workspace.interface_index == 0 then there is no interface inside this cell
         if workspace.interface_index > 0

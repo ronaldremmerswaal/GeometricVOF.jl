@@ -107,7 +107,7 @@ function Base.intersect!(out::StaticNgon{N, P}, c::Ngon, p::PlanarHS{2}; tol::Re
     return out
 end
 
-function measure(poly::StaticNgon{N, P}) where {N, P<:Point}
+function smeasure(poly::StaticNgon{N, P}) where {N, P<:Point}
     M = 0u"m^2"
     if poly.nr_verts < 3
         return M
@@ -138,7 +138,7 @@ julia> shift(c, [1.0, 0.0], 0.21875u"m^2")
 shift(c::Ngon, 𝛈::Vector, α::Quantity) = shift(c, SVector{2}(𝛈), α)
 function shift(c::Ngon, 𝛈::SVector{2}, αvol::Quantity; workspace::StaticNgon=StaticNgon(c))
 
-    α_err(p) = measure(intersect!(workspace, c, p)) - αvol
+    α_err(p) = smeasure(intersect!(workspace, c, p)) - αvol
 
     # Determine shift at each vertex
     n_verts = length(c.vertices)
@@ -156,7 +156,7 @@ function shift(c::Ngon, 𝛈::SVector{2}, αvol::Quantity; workspace::StaticNgon
 
     for i ∈ 2:n_verts
         if i == n_verts
-            α_err_curr = measure(c) - αvol
+            α_err_curr = smeasure(c) - αvol
         else
             α_err_curr = α_err(PlanarHS{2}(𝛈, shifts[perm[i]]u"1m"))
         end
