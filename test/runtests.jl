@@ -217,8 +217,8 @@ using Test
         end
 
         rates = log2.(sd_errs[1 : end-1] ./ sd_errs[2 : end])
-        println("Rates: ", rates)
-        @test all(rates .> 1.7) # TODO low rate?
+        # println("Rates: ", rates)
+        @test all(rates .> 1.9)
     end
 
     @testset "donating_region" begin
