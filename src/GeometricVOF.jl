@@ -13,8 +13,8 @@ export PlanarHS, LVIRA, StaticNgon
 export measure, intersect, intersect!,  complement, shift, reconstruct, distance, donating_region,
     smeasure, symmetric_difference, normal, tangent, sorted_unique_approx
 
-include("initialization.jl")
 include("halfspace.jl")
+include("initialization.jl")
 include("reconstruction.jl")
 include("donating_region.jl")
 include("utils.jl")
