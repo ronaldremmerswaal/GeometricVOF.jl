@@ -177,9 +177,11 @@ function shift(c::Ngon, 𝛈::SVector{2}, αvol::Quantity; workspace::StaticNgon
             B = (α_err2 - α_err0) / 2h
             C = α_err1
 
-            rts = shift1 .+ roots(Polynomial([C, B, A]))u"m"
+            x1, x2, = parabola_roots(A, B, C)
+            x1u = shift1 + x1*u"m"
+            x2u = shift1 + x2*u"m"
 
-            return shift0 ≤ rts[1] ≤ shift2 ? rts[1] : rts[2]
+            return shift0 ≤ x1u ≤ shift2 ? x1u : x2u
         end
 
         α_err_prev = α_err_curr

@@ -7,7 +7,6 @@ using Optim
 using Roots
 using Unitful
 using StaticArrays
-using Polynomials
 using ForwardMethods
 
 export PlanarHS, LVIRA, StaticNgon
