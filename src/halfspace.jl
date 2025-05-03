@@ -1,5 +1,13 @@
 # const PlanarHS = Tuple{Vector{T}, Quantity} where {T<:Real}
 
+mutable struct StaticNgon{N, P}
+    const vertices::MVector{N, P}
+    nr_verts::Int64
+    interface_index::Int64
+end
+StaticNgon(P, N::Int=32) = StaticNgon{N, P}(MVector{N, P}(undef), 0, 0)
+StaticNgon(p::Ngon, N::Int=32) = StaticNgon(eltype(p.vertices), N)
+
 abstract type HalfSpace{D} end
 
 """
@@ -44,14 +52,6 @@ Triangle
 └─ Point(x: 1.0 m, y: 0.0 m)
 ```
 """
-
-mutable struct StaticNgon{N, P}
-    vertices::MVector{N, P}
-    nr_verts::Int64
-    interface_index::Int64
-end
-StaticNgon(P, N::Int=32) = StaticNgon{N, P}(MVector{N, P}(undef), 0, 0)
-StaticNgon(p::Ngon, N::Int=32) = StaticNgon(eltype(p.vertices), N)
 
 Base.intersect(c::Ngon, p::PlanarHS{2}; kwargs...) =
     Base.intersect!(StaticNgon(eltype(c.vertices)), c, p; kwargs...)
@@ -186,9 +186,6 @@ function shift(c::Ngon, 𝛈::SVector{2}, α::Quantity; workspace::StaticNgon=St
 
         α_err_prev = α_err_curr
     end
-
-    # bracket = α_err0 > 0u"m^2" ? (shift_min, shift0) : (shift0, shift_max)
-
 
 end
 
