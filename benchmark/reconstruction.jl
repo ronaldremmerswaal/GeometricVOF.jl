@@ -24,7 +24,7 @@ function reconstruction_benchmark(mesh, inds, αs; α_tol=1E-8)
         c = mesh[i, j]
         xc = centroid(c)
         θ0 = atan(xc.coords.y, xc.coords.x) + .1
-        p0 = PlanarHS{2}(GeometricVOF.angle_to_normal(θ0), 0u"m")
+        p0 = PlanarHS(GeometricVOF.angle_to_normal(θ0), 0u"m")
         p_recon = reconstruct(recon, αs[i, j] * measure(c), p0)
         push!(recons, p_recon)
     end

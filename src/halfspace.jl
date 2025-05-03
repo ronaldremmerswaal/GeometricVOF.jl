@@ -23,7 +23,7 @@ distance(p::PlanarHS, 𝐱::Point) = p.𝛈[1] * 𝐱.coords.x + p.𝛈[2] * �
 function PlanarHS(θ::Real, αvol::Quantity, c::Ngon)
     𝛈 = GeometricVOF.angle_to_normal(θ)
     s = shift(c, 𝛈, αvol)
-    return PlanarHS{2}(𝛈, s)
+    return PlanarHS(𝛈, s)
 end
 
 import Base: intersect
@@ -152,6 +152,20 @@ function Base.intersect!(verts_inout::MVector{N, P}, c::Ngon, p::PlanarHS{2}; to
     end
 
     return verts_inout, nr_new
+end
+
+function measure(verts::MVector{N, P}, n::Int) where {N, P<:Point}
+    M = 0u"m^2"
+    if n < 3
+        return M
+    end
+
+    for vdx ∈ eachindex(verts)
+        v1 = verts[vdx]
+        v2 = verts[mod1(vdx + 1, n)]
+        M += v1.coords.x * v2.coords.y - v1.coords.y * v2.coords.x
+    end
+    M /= 2
 end
 
 function measure(p::PlanarHS{2}, c::Ngon)

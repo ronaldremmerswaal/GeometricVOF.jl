@@ -29,22 +29,25 @@ function (f::LVIRA)(p::PlanarHS{2})
     c_iface_centroid = centroid(c_iface)
     tangent = [-p.𝛈[2], p.𝛈[1]]
 
+    cp_memory = MVector{30, eltype(c_cp.vertices)}(undef)
+
     dshift = tangent ⋅ to(c_iface_centroid) # The shift derivative that ensures that the central volume is invariant
     for (c, α, cmeas) ∈ zip(f.cs, f.αs, f.cmeasures)
-        cp = c ∩ p
-        if isnothing(cp)
+        (cp_memory, cp_length) = intersect!(cp_memory, c, p)
+        if cp_length == 0
             continue
         end
-        err_local = measure(cp) / cmeas - α
+        err_local = measure(cp_memory, cp_length) / cmeas - α
 
-        iface = Segment(cp.vertices[1], cp.vertices[2]) # NOTE: this assumes the polygon is convex
-        iface_area = measure(iface)
-        iface_centroid = centroid(iface)
+        # TODO first edge no longer interface
+        # iface = Segment(cp_memory[1], cp_memory[2]) # NOTE: this assumes the polygon is convex
+        # iface_area = measure(iface)
+        # iface_centroid = centroid(iface)
 
-        derr_local = iface_area * (dshift - tangent ⋅ to(iface_centroid))
+        # derr_local = iface_area * (dshift - tangent ⋅ to(iface_centroid))
 
         err += err_local^2
-        derr += + 2 * err_local * derr_local / cmeas
+        # derr += + 2 * err_local * derr_local / cmeas
     end
     return err, derr
 end
