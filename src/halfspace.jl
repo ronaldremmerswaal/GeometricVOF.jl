@@ -19,7 +19,6 @@ PlanarHS(𝛈::V, shift::Q) where {V <: AbstractVector, Q <: Quantity} = PlanarH
 complement(p::PlanarHS) = PlanarHS(-p.𝛈, -p.shift)
 
 distance(p::PlanarHS, 𝐱::Point) = p.𝛈[1] * 𝐱.coords.x + p.𝛈[2] * 𝐱.coords.y - p.shift
-distance(𝛈::SVector{D}, shift::Quantity, 𝐱::Point) where D = 𝛈[1] * 𝐱.coords.x + 𝛈[2] * 𝐱.coords.y - shift
 
 function PlanarHS(θ::Real, αvol::Quantity, c::Ngon)
     𝛈 = GeometricVOF.angle_to_normal(θ)
@@ -124,12 +123,12 @@ function Base.intersect!(c_out::MVector{N, P}, c::Ngon, p::PlanarHS{2}; tol::Rea
         ndx = mod1(vdx + 1, nr_old_verts)
 
         if vdx == 1
-            dist_v = distance(p.𝛈, p.shift, vert_v)
+            dist_v = distance(p, vert_v)
         else
             dist_v = dist_n
         end
         vert_n = c.vertices[ndx]
-        dist_n = distance(p.𝛈, p.shift, vert_n)
+        dist_n = distance(p, vert_n)
 
         v_inside = dist_v ≤ 0u"m"
         n_inside = dist_n ≤ 0u"m"
