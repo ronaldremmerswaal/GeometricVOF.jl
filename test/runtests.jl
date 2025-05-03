@@ -72,31 +72,31 @@ using Test
 
             # Quad to Quad
             c = Quadrangle((0, 0), (1, 0), (1, 1), (0, 1))
-            p = PlanarHS{2}([0, 1], .5u"m")
+            p = PlanarHS([0, 1], .5u"m")
             cp = c ∩ p
-            @test cp == Quadrangle((1, .5), (0, .5), (0, 0), (1, 0))
+            @test cp == Quadrangle((0, 0), (1, 0), (1, .5), (0, .5))
 
-            # The first edge of the new polygon coincides with the HalfSpace
-            e1 = Segment(cp.vertices[1], cp.vertices[2])
+            # The third edge of the new polygon coincides with the HalfSpace
+            e1 = Segment(cp.vertices[3], cp.vertices[4])
             @test GeometricVOF.normal(e1) == p.𝛈
 
             # Triangle to Quadrangle
             p = PlanarHS([1, 0], .5u"m")
             tp = t ∩ p
-            @test tp == Quadrangle((.5, 0), (.5, .5), (0, 1), (0, 0))
+            @test tp == Quadrangle((0, 0), (.5, 0), (.5, .5), (0, 1))
 
-            # The first edge of the new polygon coincides with the HalfSpace
-            e1 = Segment(tp.vertices[1], tp.vertices[2])
+            # The second edge of the new polygon coincides with the HalfSpace
+            e1 = Segment(tp.vertices[2], tp.vertices[3])
             @test GeometricVOF.normal(e1) == p.𝛈
 
             # Non-convex case
             nc = Ngon((0, 0), (1, 0), (.5, .5), (1, 1), (0, 1))
             p = PlanarHS([1, 0], .75u"m")
             ncp = nc ∩ p
-            @test ncp == Ngon((.75, 0), (.75, .25), (.5, .5), (.75, .75), (.75, 1), (0, 1), (0, 0))
+            @test ncp == Ngon((0, 0), (.75, 0), (.75, .25), (.5, .5), (.75, .75), (.75, 1), (0, 1))
 
-            # The first edge of the new polygon coincides with the HalfSpace
-            e1 = Segment(ncp.vertices[1], ncp.vertices[2])
+            # The second edge of the new polygon coincides with the HalfSpace
+            e1 = Segment(ncp.vertices[2], ncp.vertices[3])
             @test GeometricVOF.normal(e1) == p.𝛈
 
             # Edge case: colinear to edge, but all inside
@@ -141,20 +141,20 @@ using Test
     @testset "symmetric_difference (Δ)" begin
         # Exact: Δ = zero
         c = Quadrangle((0, 0), (1, 0), (1, 1), (0, 1))
-        p = PlanarHS{2}([0, 1], .5u"m")
+        p = PlanarHS([0, 1], .5u"m")
         Φ(x, y) = y - .5u"m" # TODO also for Bool
         @test symmetric_difference(Φ, p, c) == 0u"m^2"
 
         # Simple: Δ is difference between planes
-        p = PlanarHS{2}([0, 1], .4u"m")
+        p = PlanarHS([0, 1], .4u"m")
         @test isapprox(symmetric_difference(Φ, p, c), .1u"m^2", rtol=10eps())
 
-        p = PlanarHS{2}([0, -1], -.5u"m")
+        p = PlanarHS([0, -1], -.5u"m")
         @test isapprox(symmetric_difference(Φ, p, c), 1u"m^2", rtol=10eps())
 
         # Nontrivial: planar approximation to parabola (correct volume)
         f(x, ε) = .5u"m" + ε * (x - .5u"m")^2/u"m" - ε * u"m" / 12
-        p = PlanarHS{2}([0, 1], .5u"m")
+        p = PlanarHS([0, 1], .5u"m")
         for ε ∈ 10. .^(-4 : -1)
             Φε(x, y) = y - f(x, ε)
             xs = 1/2 - 1/√12
@@ -172,11 +172,11 @@ using Test
             𝛈 = GeometricVOF.SVector{2}(cos(θ), sin(θ))
             shift_min, shift_max = GeometricVOF.shift_extrema(mesh[5], 𝛈)
             for shift_ref ∈ range(.9shift_min, .9shift_max, length=M)
-                p_ref = PlanarHS{2}(𝛈, shift_ref)
+                p_ref = PlanarHS(𝛈, shift_ref)
 
                 # Initialize reference volumes
                 αs = [measure(p_ref, c) / measure(c) for c ∈ mesh]
-                p0 = PlanarHS{2}(GeometricVOF.angle_to_normal(θ + 0.7), 0u"m")
+                p0 = PlanarHS(GeometricVOF.angle_to_normal(θ + 0.7), 0u"m")
                 p_recon = reconstruct(p0, αs[5], mesh[5], αs, view(mesh, 1:9))
 
                 @test isapprox(p_recon.shift, p_ref.shift, rtol=100eps())
@@ -203,7 +203,7 @@ using Test
                 c = mesh[i, j]
                 xc = centroid(c)
                 θ0 = atan(xc.coords.y, xc.coords.x) + .1
-                p0 = PlanarHS{2}(GeometricVOF.angle_to_normal(θ0), 0u"m")
+                p0 = PlanarHS(GeometricVOF.angle_to_normal(θ0), 0u"m")
                 p_recon = reconstruct(p0, αs[i, j], c, view(αs, i-1:i+1, j-1:j+1), view(mesh, inds[i-1:i+1, j-1:j+1][:]))
 
                 sd_err += symmetric_difference(Φ, p_recon, c)
