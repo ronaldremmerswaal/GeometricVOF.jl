@@ -176,11 +176,8 @@ using Test
 
                 # Initialize reference volumes
                 αs = [measure(p_ref, c) / measure(c) for c ∈ mesh]
-
-                recon = LVIRA(view(mesh, 1:9), αs, mesh[5])
-
                 p0 = PlanarHS{2}(GeometricVOF.angle_to_normal(θ + 0.7), 0u"m")
-                p_recon = reconstruct(recon, αs[5] * measure(mesh[5]), p0)
+                p_recon = reconstruct(p0, αs[5], mesh[5], αs, view(mesh, 1:9))
 
                 @test isapprox(p_recon.shift, p_ref.shift, rtol=100eps())
                 @test isapprox(p_recon.𝛈, p_ref.𝛈, rtol=100eps())
@@ -203,12 +200,11 @@ using Test
                 if αs[i, j] == 0 || αs[i, j] == 1
                     continue
                 end
-                recon = LVIRA(view(mesh, inds[i-1:i+1, j-1:j+1][:]), αs[i-1:i+1, j-1:j+1], mesh[i, j])
                 c = mesh[i, j]
                 xc = centroid(c)
                 θ0 = atan(xc.coords.y, xc.coords.x) + .1
                 p0 = PlanarHS{2}(GeometricVOF.angle_to_normal(θ0), 0u"m")
-                p_recon = reconstruct(recon, αs[i, j] * measure(c), p0)
+                p_recon = reconstruct(p0, αs[i, j], c, view(αs, i-1:i+1, j-1:j+1), view(mesh, inds[i-1:i+1, j-1:j+1][:]))
 
                 sd_err += symmetric_difference(Φ, p_recon, c)
             end

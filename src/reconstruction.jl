@@ -1,4 +1,4 @@
-function reconstruct(p0::PlanarHS{2}, α_central::T, c_central::Ngon, cs::SubDomain, αs::AbstractArray{T}, cmeasures::AbstractArray{Q}=measure.(cs)) where {T <: Real, Q <: Quantity}
+function reconstruct(p0::PlanarHS{2}, α_central::T, c_central::Ngon, αs::AbstractArray{T}, cs::SubDomain, cmeasures::AbstractArray{Q}=measure.(cs)) where {T <: Real, Q <: Quantity}
     ref_vol = measure(c_central) * α_central
     wrapped_costfun(θ::Real) = lvira_costfun(PlanarHS(θ, ref_vol, c_central), cs, αs, cmeasures, c_central)
 

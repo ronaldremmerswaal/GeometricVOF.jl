@@ -25,7 +25,7 @@ function reconstruction_benchmark(mesh, inds, αs; α_tol=1E-8)
         θ0 = atan(xc.coords.y, xc.coords.x) + .1
         p0 = PlanarHS(GeometricVOF.angle_to_normal(θ0), 0u"m")
 
-        p_recon = reconstruct(p0, αs[i, j], c, view(mesh, inds[i-1:i+1, j-1:j+1][:]), view(αs, i-1:i+1, j-1:j+1))
+        p_recon = reconstruct(p0, αs[i, j], c, view(αs, i-1:i+1, j-1:j+1), view(mesh, inds[i-1:i+1, j-1:j+1][:]))
         push!(recons, p_recon)
     end
 
