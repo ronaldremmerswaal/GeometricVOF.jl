@@ -1,6 +1,6 @@
 function reconstruct(p0::PlanarHS{2}, α_central::T, c_central::Ngon, αs::AbstractArray{T}, cs::SubDomain,
     cmeasures::AbstractArray{Q}=measure.(cs); workspace::StaticNgon=StaticNgon(c_central)) where {T <: Real, Q <: Quantity}
-    ref_vol = measure(c_central) * α_central
+    ref_vol = smeasure(c_central) * α_central
 
     wrapped_costfun(θ::Real) = lvira_costfun(PlanarHS(θ, ref_vol, c_central; workspace=workspace), cs, αs, cmeasures, c_central, workspace=workspace)
 
