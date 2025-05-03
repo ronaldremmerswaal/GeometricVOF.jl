@@ -34,7 +34,7 @@ function (f::LVIRA)(p::PlanarHS{2})
     dshift = tangent ⋅ to(c_iface_centroid) # The shift derivative that ensures that the central volume is invariant
     for (c, α, cmeas) ∈ zip(f.cs, f.αs, f.cmeasures)
         cp_memory, cp_length, cp_interface = intersect!(cp_memory, c, p)
-        if cp_length == 0
+        if cp_length < 3
             continue
         end
         err_local = measure(cp_memory, cp_length) / cmeas - α
