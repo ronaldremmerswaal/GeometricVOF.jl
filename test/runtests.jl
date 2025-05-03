@@ -227,54 +227,47 @@ using Test
         # Trivial case
         s = Segment((0, 0), (0, 1))
         u(x, y) = U * [1., 0.]
-        drp, drm = donating_region(s, u, dt)
-        @test drp == Quadrangle((0, 0), (0, 1), (-dt / T, 1), (-dt / T, 0))
-        @test isnothing(drm)
+        dr = donating_region(s, u, dt)
+        @test dr == Quadrangle((0, 0), (0, 1), (-dt / T, 1), (-dt / T, 0))
 
         # Fix the reference volume (but no adjustment needed)
         α_ref = .1L^2
-        drp, drm = donating_region(s, u, dt, α=α_ref)
-        @test smeasure(drp) == α_ref
-        @test drp == Pentagon((0, 0), (0, 1), (-dt / T, 1), (-dt / T, .5), (-dt / T, 0))
-        @test isnothing(drm)
+        dr = donating_region(s, u, dt, α=α_ref)
+        @test smeasure(dr) == α_ref
+        @test dr == Pentagon((0, 0), (0, 1), (-dt / T, 1), (-dt / T, .5), (-dt / T, 0))
 
         # Fix the reference volume (adjustment needed)
         α_ref = .125L^2
-        drp, drm = donating_region(s, u, dt, α=α_ref)
-        @test smeasure(drp) == α_ref
-        @test drp ≈ Pentagon((0, 0), (0, 1), (-dt / T, 1), (-1.5dt / T, .5), (-dt / T, 0))
-        @test isnothing(drm)
+        dr = donating_region(s, u, dt, α=α_ref)
+        @test smeasure(dr) == α_ref
+        @test dr ≈ Pentagon((0, 0), (0, 1), (-dt / T, 1), (-1.5dt / T, .5), (-dt / T, 0))
 
         # Slightly less trivial case
         s = Segment((0, 0), (0, 1))
         u(x, y) = U * [1., 1.]
-        drp, drm = donating_region(s, u, dt)
-        @test drp == Quadrangle((0, 0), (0, 1), (-dt / T, 1 - dt / T), (-dt / T, -dt / T))
-        @test isnothing(drm)
+        dr = donating_region(s, u, dt)
+        @test dr == Quadrangle((0, 0), (0, 1), (-dt / T, 1 - dt / T), (-dt / T, -dt / T))
 
         # Fix the reference volume (but no adjustment needed)
         α_ref = .1L^2
-        drp, drm = donating_region(s, u, dt, α=α_ref)
-        @test smeasure(drp) ≈ α_ref
-        @test drp == Pentagon((0, 0), (0, 1), (-dt / T, 1 - dt / T), ((-dt / T, .5 - dt / T)), (-dt / T, -dt / T))
-        @test isnothing(drm)
+        dr = donating_region(s, u, dt, α=α_ref)
+        @test smeasure(dr) ≈ α_ref
+        @test dr == Pentagon((0, 0), (0, 1), (-dt / T, 1 - dt / T), ((-dt / T, .5 - dt / T)), (-dt / T, -dt / T))
 
         # Fix the reference volume (adjustment needed)
         α_ref = .125L^2
-        drp, drm = donating_region(s, u, dt, α=α_ref)
-        @test smeasure(drp) == α_ref
-        @test isnothing(drm)
+        dr = donating_region(s, u, dt, α=α_ref)
+        @test smeasure(dr) == α_ref
 
         # Nontrivial case
         u(x, y) = U * [-.1 + sin(x/L) * cos(3y/L), sin((x + y) / L)]
         s = Segment((0, 0), (.3, .2))
-        drp, drm = donating_region(s, u, dt)
-        @test isnothing(drp)
-        @test isa(drm, Quadrangle)
+        dr = donating_region(s, u, dt)
+        @test isa(dr, Quadrangle)
 
         α_ref = 6E-3L^2
-        drp, drm = donating_region(s, u, dt, α=α_ref)
-        @test isapprox(smeasure(drp) + smeasure(drm), α_ref, rtol=10eps())
+        dr = donating_region(s, u, dt, α=α_ref)
+        @test isapprox(smeasure(dr), α_ref, rtol=10eps())
 
         # Trivial, but opposite sign
         s = Segment((0, 0), (0, 1))
@@ -282,35 +275,31 @@ using Test
 
         # Fix the reference volume (but no adjustment needed)
         α_ref = -.1L^2
-        drp, drm = donating_region(s, u, dt, α=α_ref)
-        @test smeasure(drm) == α_ref
-        @test drm == Pentagon((0, 0), (0, 1), (dt / T, 1), (dt / T, .5), (dt / T, 0))
-        @test isnothing(drp)
+        dr = donating_region(s, u, dt, α=α_ref)
+        @test smeasure(dr) == α_ref
+        @test dr == Pentagon((0, 0), (0, 1), (dt / T, 1), (dt / T, .5), (dt / T, 0))
 
         # Fix the reference volume (adjustment needed)
         α_ref = -.125L^2
-        drp, drm = donating_region(s, u, dt, α=α_ref)
-        @test smeasure(drm) == α_ref
-        @test drm ≈ Pentagon((0, 0), (0, 1), (dt / T, 1), (1.5dt / T, .5), (dt / T, 0))
-        @test isnothing(drp)
+        dr = donating_region(s, u, dt, α=α_ref)
+        @test smeasure(dr) == α_ref
+        @test dr ≈ Pentagon((0, 0), (0, 1), (dt / T, 1), (1.5dt / T, .5), (dt / T, 0))
 
         # Self-intersection case
         s = Segment((0, 0), (0, 1))
         u(x, y) = U * [y/L-0.5, 0.]
-        drp, drm = donating_region(s, u, dt)
-        @test smeasure(drp) == 0.0125L^2
-        @test smeasure(drm) == -0.0125L^2
+        dr = donating_region(s, u, dt)
+        @test smeasure(dr) == 0L^2
 
         # Fix the reference volume (but no adjustment needed)
         α_ref = 0L^2
-        drp, drm = donating_region(s, u, dt, α=α_ref)
-        @test smeasure(drp) == 0.0125L^2
-        @test smeasure(drm) == -0.0125L^2
+        dr = donating_region(s, u, dt, α=α_ref)
+        @test smeasure(dr) == 0L^2
 
         # Fix the reference volume (adjustment needed)
         α_ref = 0.01L^2
-        drp, drm = donating_region(s, u, dt, α=α_ref)
-        @test smeasure(drp) + smeasure(drm) ≈ α_ref
+        dr = donating_region(s, u, dt, α=α_ref)
+        @test smeasure(dr) ≈ α_ref
     end
 
 end

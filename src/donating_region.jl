@@ -49,26 +49,36 @@ end
 function donating_region(s::Segment{𝔼{2}}, velo::AbstractVector{Vector{T}},
     dt::Quantity; α::Union{Nothing, Quantity}=nothing) where T<:Quantity
 
+    out = StaticNgon(eltype(s.vertices))
+    Ngon(donating_region!(out, s, velo, dt; α=α))
+end
+
+function donating_region!(out::StaticNgon, s::Segment{𝔼{2}}, velo::AbstractVector{Vector{T}},
+    dt::Quantity; α::Union{Nothing, Quantity}=nothing) where T<:Quantity
+
     v1, v2 = vertices(s)
 
     v1_pre = v1 - Vec(dt * velo[1][1], dt * velo[1][2])
     v2_pre = v2 - Vec(dt * velo[2][1], dt * velo[2][2])
 
-    poly = Quadrangle(v1, v2, v2_pre, v1_pre)
+    out.vertices[1] = v1
+    out.vertices[2] = v2
+    out.vertices[3] = v2_pre
+    out.vertices[4] = v1_pre
+    out.nr_verts = 4
 
     if !isnothing(α)
         s_pre = Segment(v1_pre, v2_pre)
         n = normal(s_pre)
 
-        volume_err = smeasure(poly) - α
+        volume_err = smeasure(out) - α
         dn = n * (2 *  volume_err / Meshes.measure(s_pre))
         vmid_pre = v1_pre + (v2_pre - v1_pre) / 2 + Vec(dn...)
 
-        poly = Pentagon(v1, v2, v2_pre, vmid_pre, v1_pre)
+        out.vertices[4] = vmid_pre
+        out.vertices[5] = v1_pre
+        out.nr_verts = 5
     end
 
-    # We split the DR into at most two parts: one positively oriented, one negatively
-    n = normal(s)
-    hs = PlanarHS(n, n ⋅ to(v1))
-    (poly ∩ hs, poly ∩ complement(hs))
+    return out
 end
