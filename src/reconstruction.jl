@@ -51,5 +51,6 @@ function (f::LVIRA)(p::PlanarHS{2})
 
         err += err_local^2
     end
+
     return err, derr
 end

@@ -170,7 +170,7 @@ function measure(verts::MVector{N, P}, n::Int) where {N, P<:Point}
         return M
     end
 
-    for vdx ∈ eachindex(verts)
+    for vdx = 1:n
         v1 = verts[vdx]
         v2 = verts[mod1(vdx + 1, n)]
         M += v1.coords.x * v2.coords.y - v1.coords.y * v2.coords.x
