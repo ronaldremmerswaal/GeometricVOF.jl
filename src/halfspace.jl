@@ -136,9 +136,9 @@ julia> shift(c, [1.0, 0.0], 0.21875u"m^2")
 ```
 """
 shift(c::Ngon, 𝛈::Vector, α::Quantity) = shift(c, SVector{2}(𝛈), α)
-function shift(c::Ngon, 𝛈::SVector{2}, α::Quantity; workspace::StaticNgon=StaticNgon(c)) # TODO constrain α to have units m^2
+function shift(c::Ngon, 𝛈::SVector{2}, αvol::Quantity; workspace::StaticNgon=StaticNgon(c))
 
-    α_err(p) = measure(intersect!(workspace, c, p)) - α
+    α_err(p) = measure(intersect!(workspace, c, p)) - αvol
 
     # Determine shift at each vertex
     n_verts = length(c.vertices)
@@ -151,12 +151,12 @@ function shift(c::Ngon, 𝛈::SVector{2}, α::Quantity; workspace::StaticNgon=St
     # Evaluate the error function at the shifts
     sortperm!(view(perm, 1:n_verts), view(shifts, 1:n_verts))
     # shifts = shifts[perm]
-    α_err_prev = -α
+    α_err_prev = -αvol
     if α_err_prev == 0u"m^2" return shifts[perm[1]]u"1m" end
 
     for i ∈ 2:n_verts
         if i == n_verts
-            α_err_curr = measure(c) - α
+            α_err_curr = measure(c) - αvol
         else
             α_err_curr = α_err(PlanarHS{2}(𝛈, shifts[perm[i]]u"1m"))
         end
