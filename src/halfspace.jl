@@ -35,6 +35,11 @@ function PlanarHS(θ::T, αvol::Quantity, c::Ngon; workspace::StaticNgon=StaticN
     return PlanarHS{2}(𝛈, s)
 end
 
+function PlanarHS(v1::Point, v2::Point)
+    𝛈 = GeometricVOF.angle_to_normal(atan(v2.coords.y - v1.coords.y, v2.coords.x - v1.coords.x))
+    return PlanarHS{2}(𝛈, 𝛈 ⋅ to(v1))
+end
+
 import Base: intersect
 """
     intersect(c, p)
@@ -67,15 +72,23 @@ function measure(p::PlanarHS, c::Ngon)
 end
 
 function Base.intersect!(out::StaticNgon{N, P}, c::Ngon, p::PlanarHS{2}; tol::Real=√eps(typeof(c.vertices[1].coords.x.val))) where {N, P<:Point}
+    intersect!(out, c.vertices, p; tol=tol)
+end
 
-    nr_old_verts = length(vertices(c))
+function Base.intersect!(out::StaticNgon{N, P}, in::StaticNgon{N, P}, p::PlanarHS{2}; tol::Real=√eps(typeof(c.vertices[1].coords.x.val))) where {N, P<:Point}
+    intersect!(out, view(in.vertices, 1:in.nr_verts), p; tol=tol)
+end
+
+function Base.intersect!(out::StaticNgon{N, P}, verts::AbstractVector{P}, p::PlanarHS{2}; tol::Real=√eps(typeof(c.vertices[1].coords.x.val))) where {N, P<:Point}
+
+    nr_old_verts = length(verts)
 
     # Construct new polygon by looping over the edges of the old polygon
     out.nr_verts = 0
     next_dist = 0u"m"
     next_inside = false
     out.interface_index = 0
-    for (cdx, curr_vert) ∈ enumerate(c.vertices)
+    for (cdx, curr_vert) ∈ enumerate(verts)
         ndx = mod1(cdx + 1, nr_old_verts)
 
         if cdx == 1
@@ -85,7 +98,7 @@ function Base.intersect!(out::StaticNgon{N, P}, c::Ngon, p::PlanarHS{2}; tol::Re
             curr_dist = next_dist
             curr_inside = next_inside
         end
-        next_vert = c.vertices[ndx]
+        next_vert = verts[ndx]
         next_dist = distance(p, next_vert)
         next_inside = next_dist ≤ 0u"m"
 
@@ -111,6 +124,43 @@ function Base.intersect!(out::StaticNgon{N, P}, c::Ngon, p::PlanarHS{2}; tol::Re
                     end
                 end
             end
+        end
+    end
+
+    return out
+end
+
+function copy!(to::StaticNgon{N1, P}, from::StaticNgon{N2, P}) where {N1, N2, P<:Point}
+    to.nr_verts = from.nr_verts
+    to.interface_index = from.interface_index
+    for i ∈ 1:from.nr_verts
+        to.vertices[i] = from.vertices[i]
+    end
+    return to
+end
+
+function copy!(to::StaticNgon{N, P}, from::Ngon) where {N, P<:Point}
+    to.nr_verts = length(from.vertices)
+    to.interface_index = 0
+    for i ∈ 1:to.nr_verts
+        to.vertices[i] = from.vertices[i]
+    end
+    return to
+end
+
+function Base.intersect!(out::StaticNgon{N, P}, c1::Ngon, c2::Ngon;
+    tol::Real=√eps(typeof(c1.vertices[1].coords.x.val)), workspace::StaticNgon=StaticNgon(c1))  where {N, P<:Point}
+
+    copy!(workspace, c1)
+
+    for (cdx, curr_vert) ∈ enumerate(c2.vertices)
+        next_vert = c2.vertices[mod1(cdx + 1, length(c2.vertices))]
+        hs = PlanarHS(curr_vert, next_vert)
+
+        intersect!(out, workspace, hs; tol=tol)
+
+        if cdx < length(c2.vertices)
+            copy!(workspace, out)
         end
     end
 

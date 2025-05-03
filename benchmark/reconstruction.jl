@@ -1,6 +1,7 @@
 using GeometricVOF
 using Unitful
 using Meshes
+using StaticArrays
 
 function reconstruction_prep(;N=2^9)
     R = 0.25u"m"
