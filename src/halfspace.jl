@@ -151,6 +151,15 @@ end
 function Base.intersect!(out::StaticNgon{N, P}, c1::Ngon, c2::Ngon;
     tol::Real=√eps(typeof(c1.vertices[1].coords.x.val)), workspace::StaticNgon=StaticNgon(c1))  where {N, P<:Point}
 
+    static_c1 = StaticNgon(c1)
+    copy!(static_c1, c1)
+
+    intersect!(out, static_c1, c2; tol=tol, workspace=workspace)
+end
+
+function Base.intersect!(out::StaticNgon{N1, P}, c1::StaticNgon{N2, P}, c2::Ngon;
+    tol::Real=√eps(typeof(c1.vertices[1].coords.x.val)), workspace::StaticNgon=StaticNgon(c1))  where {N1, N2, P<:Point}
+
     copy!(workspace, c1)
 
     for (cdx, curr_vert) ∈ enumerate(c2.vertices)
