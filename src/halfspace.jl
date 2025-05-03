@@ -125,10 +125,10 @@ function Base.intersect!(verts_inout::MVector{N, P}, c::Ngon, p::PlanarHS{2}; to
 
         if cdx == 1
             curr_dist = distance(p, curr_vert)
-            curr_inside = next_inside
+            curr_inside = curr_dist ≤ 0u"m"
         else
             curr_dist = next_dist
-            curr_inside = curr_dist ≤ 0u"m"
+            curr_inside = next_inside
         end
         next_vert = c.vertices[ndx]
         next_dist = distance(p, next_vert)
