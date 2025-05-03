@@ -15,15 +15,16 @@ struct PlanarHS{D, V, Q} <: HalfSpace{D}
 end
 # PlanarHS(𝛈::Vector, shift::Number) = PlanarHS{length(𝛈)}(SVector{length(𝛈)}(𝛈), shift * u"m")
 PlanarHS(𝛈::V, shift::Q) where {V <: AbstractVector, Q <: Quantity} = PlanarHS{length(𝛈), V, Q}(SVector{length(𝛈)}(𝛈), shift)
+PlanarHS{D}(𝛈::V, shift::Q) where {D, V <: AbstractVector, Q <: Quantity} = PlanarHS{D, V, Q}(SVector{D}(𝛈), shift)
 
 complement(p::PlanarHS) = PlanarHS(-p.𝛈, -p.shift)
 
 distance(p::PlanarHS, 𝐱::Point) = p.𝛈[1] * 𝐱.coords.x + p.𝛈[2] * 𝐱.coords.y - p.shift
 
-function PlanarHS(θ::Real, αvol::Quantity, c::Ngon)
+function PlanarHS(θ::T, αvol::Quantity, c::Ngon) where {T <: Real}
     𝛈 = GeometricVOF.angle_to_normal(θ)
     s = shift(c, 𝛈, αvol)
-    return PlanarHS(𝛈, s)
+    return PlanarHS{2}(𝛈, s)
 end
 
 import Base: intersect

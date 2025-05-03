@@ -23,15 +23,16 @@ function (f::LVIRA)(p::PlanarHS{2})
     err = 0    # Value
     derr = 0   # Derivative w.r.t. the angle
 
-    c_cp = f.c_c ∩ p
-    c_iface = Segment(c_cp.vertices[1], c_cp.vertices[2]) # NOTE: this assumes the polygon is convex
-    # c_iface_area = measure(c_iface)
-    c_iface_centroid = centroid(c_iface)
-    tangent = [-p.𝛈[2], p.𝛈[1]]
+    cp_memory = MVector{30, eltype(f.c_c.vertices)}(undef)
+    (cp_memory, cp_length) = intersect!(cp_memory, f.c_c, p)
 
-    cp_memory = MVector{30, eltype(c_cp.vertices)}(undef)
+    # c_iface = Segment(c_cp.vertices[1], c_cp.vertices[2]) # NOTE: this assumes the polygon is convex
+    # # c_iface_area = measure(c_iface)
+    # c_iface_centroid = centroid(c_iface)
+    # tangent = [-p.𝛈[2], p.𝛈[1]]
 
-    dshift = tangent ⋅ to(c_iface_centroid) # The shift derivative that ensures that the central volume is invariant
+
+    # dshift = tangent ⋅ to(c_iface_centroid) # The shift derivative that ensures that the central volume is invariant
     for (c, α, cmeas) ∈ zip(f.cs, f.αs, f.cmeasures)
         (cp_memory, cp_length) = intersect!(cp_memory, c, p)
         if cp_length == 0
