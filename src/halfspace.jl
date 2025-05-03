@@ -29,9 +29,9 @@ complement(p::PlanarHS) = PlanarHS(-p.𝛈, -p.shift)
 
 distance(p::PlanarHS, 𝐱::Point) = p.𝛈[1] * 𝐱.coords.x + p.𝛈[2] * 𝐱.coords.y - p.shift
 
-function PlanarHS(θ::T, αvol::Quantity, c::Ngon; workspace::StaticNgon=StaticNgon(c)) where {T <: Real}
+function PlanarHS(θ::T, αvol::Quantity, c::Ngon; workspace::StaticNgon=StaticNgon(c), shift_workspace::MVector=MVector{32, Float64}(undef)) where {T <: Real}
     𝛈 = GeometricVOF.angle_to_normal(θ)
-    s = shift(c, 𝛈, αvol; workspace=workspace)
+    s = shift(c, 𝛈, αvol; workspace=workspace, shift_workspace=shift_workspace)
     return PlanarHS{2}(𝛈, s)
 end
 
@@ -146,35 +146,34 @@ julia> shift(c, [1.0, 0.0], 0.21875u"m^2")
 ```
 """
 shift(c::Ngon, 𝛈::Vector, α::Quantity) = shift(c, SVector{2}(𝛈), α)
-function shift(c::Ngon, 𝛈::SVector{2}, αvol::Quantity; workspace::StaticNgon=StaticNgon(c))
+function shift(c::Ngon, 𝛈::SVector{2}, αvol::Quantity; workspace::StaticNgon=StaticNgon(c), shift_workspace::MVector=MVector{32, Float64}(undef))
 
     α_err(p) = smeasure(intersect!(workspace, c, p)) - αvol
 
     # Determine shift at each vertex
     n_verts = length(c.vertices)
-    shifts = MVector{30, Float64}(undef)
     for (vdx, v) ∈ enumerate(c.vertices)
-        shifts[vdx] = ustrip(𝛈[1] * v.coords.x + 𝛈[2] * v.coords.y)
+        shift_workspace[vdx] = ustrip(𝛈[1] * v.coords.x + 𝛈[2] * v.coords.y)
     end
 
-    # Evaluate the error function at the shifts
-    sort!(view(shifts, 1:n_verts))
+    # Evaluate the error function at the shift_workspace
+    sort!(view(shift_workspace, 1:n_verts))
     α_err_prev = -αvol
-    if α_err_prev == 0u"m^2" return shifts[1]u"1m" end
+    if α_err_prev == 0u"m^2" return shift_workspace[1]u"1m" end
 
     for i ∈ 2:n_verts
         if i == n_verts
             α_err_curr = smeasure(c) - αvol
         else
-            α_err_curr = α_err(PlanarHS{2}(𝛈, shifts[i]u"1m"))
+            α_err_curr = α_err(PlanarHS{2}(𝛈, shift_workspace[i]u"1m"))
         end
 
-        if α_err_curr == 0u"m^2" return shifts[i]u"1m" end
+        if α_err_curr == 0u"m^2" return shift_workspace[i]u"1m" end
 
         if sign(α_err_curr) != sign(α_err_prev)
-            # We have found a sign change, so we can use the two shifts to bracket the root
-            shift0 = shifts[i - 1]u"1m"
-            shift2 = shifts[i]u"1m"
+            # We have found a sign change, so we can use the two shift_workspace to bracket the root
+            shift0 = shift_workspace[i - 1]u"1m"
+            shift2 = shift_workspace[i]u"1m"
             shift1 = (shift0 + shift2) / 2
 
             # Moreover, the dependence in the bracket is quadratic, so 3 values are sufficient

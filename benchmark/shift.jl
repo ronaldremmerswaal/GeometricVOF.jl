@@ -10,4 +10,6 @@ quad = Quadrangle((-.1, -.1), (.9, -.1), (.9, .9), (-.1, .9))
 workspace = StaticNgon(tri)
 αvol = measure(quad) / π
 
-@benchmark shift($quad, $𝛈, $αvol; workspace=$workspace)
+shifts = MVector{30, Float64}(undef)
+
+@benchmark shift($quad, $𝛈, $αvol; workspace=$workspace, shift_workspace=$shifts)
