@@ -200,7 +200,7 @@ julia> shift(c, [1.0, 0.0], 0.21875u"m^2")
 shift(c::Ngon, 𝛈::Vector, α::Quantity) = shift(c, SVector{2}(𝛈), α)
 function shift(c::Ngon, 𝛈::SVector{2}, α::Quantity) # TODO constrain α to have units m^2
 
-    α_err(shift) = measure(PlanarHS(𝛈, shift), c) - α
+    cp_memory = MVector{30, eltype(c.vertices)}(undef)
 
     # Determine shift at each vertex
     shifts = Vector{Quantity}(undef, length(c.vertices))
@@ -216,7 +216,9 @@ function shift(c::Ngon, 𝛈::SVector{2}, α::Quantity) # TODO constrain α to h
 
     for i ∈ 2:length(c.vertices)
         if i < length(c.vertices)
-            α_err_curr = α_err(shifts[i])
+            hs = PlanarHS{2}(𝛈, shifts[i])
+            cp_memory, cp_length, = intersect!(cp_memory, c, hs)
+            α_err_curr = measure(cp_memory, cp_length) - α
         else
             α_err_curr = measure(c) - α
         end
@@ -229,9 +231,12 @@ function shift(c::Ngon, 𝛈::SVector{2}, α::Quantity) # TODO constrain α to h
             shift2 = shifts[i]
             shift1 = (shift0 + shift2) / 2
 
+            hs = PlanarHS{2}(𝛈, shift1)
+            cp_memory, cp_length, = intersect!(cp_memory, c, hs)
+
             # Moreover, the dependence in the bracket is quadratic, so 3 values are sufficient
             α_err0 = ustrip(α_err_prev)
-            α_err1 = ustrip(α_err(shift1))
+            α_err1 = ustrip(measure(cp_memory, cp_length) - α)
             α_err2 = ustrip(α_err_curr)
 
             h = ustrip(shift2 - shift1)
