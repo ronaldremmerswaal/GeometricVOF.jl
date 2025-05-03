@@ -1,3 +1,5 @@
+# const PlanarHS = Tuple{Vector{T}, Quantity} where {T<:Real}
+
 abstract type HalfSpace{D} end
 
 """
@@ -17,6 +19,7 @@ PlanarHS(𝛈::Vector, shift::Quantity) = PlanarHS{length(𝛈)}(SVector{length(
 complement(p::PlanarHS) = PlanarHS(-p.𝛈, -p.shift)
 
 distance(p::PlanarHS{2}, 𝐱::Point) = p.𝛈[1] * 𝐱.coords.x + p.𝛈[2] * 𝐱.coords.y - p.shift
+distance(𝛈::SVector{D}, shift::Quantity, 𝐱::Point) where D = 𝛈[1] * 𝐱.coords.x + 𝛈[2] * 𝐱.coords.y - shift
 
 function PlanarHS(θ::Real, αvol::Quantity, c::Ngon)
     𝛈 = GeometricVOF.angle_to_normal(θ)
@@ -108,6 +111,46 @@ function Base.intersect(c::Ngon, p::PlanarHS{2}; tol::Real=√eps(typeof(c.verti
     else
         return Ngon(new_verts...)
     end
+end
+
+function Base.intersect!(c_out::MVector{N, P}, c::Ngon, normal::SVector{D}, shift::Quantity; tol::Real=√eps(typeof(c.vertices[1].coords.x.val))) where {N, P<:Point, D}
+
+    nr_old_verts = length(vertices(c))
+
+    # Construct new polygon by looping over the edges of the old polygon
+    nr_new = 0
+    dist_n = 0u"m"
+    for (vdx, vert_v) ∈ enumerate(c.vertices)
+        ndx = mod1(vdx + 1, nr_old_verts)
+
+        if vdx == 1
+            dist_v = distance(normal, shift, vert_v)
+        else
+            dist_v = dist_n
+        end
+        vert_n = c.vertices[ndx]
+        dist_n = distance(normal, shift, vert_n)
+
+        v_inside = dist_v ≤ 0u"m"
+        n_inside = dist_n ≤ 0u"m"
+        edge_is_bisected = v_inside != n_inside
+
+        if edge_is_bisected
+            coeff = abs(dist_v / (dist_n - dist_v))
+            if (v_inside && coeff > tol) ||
+               (n_inside && coeff < 1 - tol)
+                nr_new += 1
+                c_out[nr_new] = vert_v + coeff * (vert_n - vert_v)
+            end
+        end
+
+        if n_inside
+            nr_new += 1
+            c_out[nr_new] = vert_n
+        end
+    end
+
+    return c_out, nr_new
 end
 
 function measure(p::PlanarHS{2}, c::Ngon)

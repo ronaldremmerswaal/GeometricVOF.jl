@@ -10,7 +10,7 @@ using StaticArrays
 using Polynomials
 
 export PlanarHS, LVIRA
-export measure, intersect,  complement, shift, reconstruct, distance, donating_region,
+export measure, intersect, intersect!,  complement, shift, reconstruct, distance, donating_region,
     smeasure, symmetric_difference, normal, tangent, sorted_unique_approx
 
 include("initialization.jl")
