@@ -62,12 +62,12 @@ Base.intersect(c::Ngon, p::PlanarHS{2}; kwargs...) =
     Ngon(Base.intersect!(StaticNgon(eltype(c.vertices)), c, p; kwargs...))
 
 Ngon(poly::StaticNgon) = poly.nr_verts < 3 ? nothing : Ngon(poly.vertices[1:poly.nr_verts]...)
-function measure(p::PlanarHS, c::Ngon)
+function smeasure(p::PlanarHS, c::Ngon)
     cp = intersect(c, p)
     if isnothing(cp)
         return 0u"m^2"
     else
-        return measure(cp)
+        return smeasure(cp)
     end
 end
 

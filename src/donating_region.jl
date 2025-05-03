@@ -61,7 +61,7 @@ function donating_region(s::Segment{𝔼{2}}, velo::AbstractVector{Vector{T}},
         n = normal(s_pre)
 
         volume_err = smeasure(poly) - α
-        dn = n * (2 *  volume_err / measure(s_pre))
+        dn = n * (2 *  volume_err / Meshes.measure(s_pre))
         vmid_pre = v1_pre + (v2_pre - v1_pre) / 2 + Vec(dn...)
 
         poly = Pentagon(v1, v2, v2_pre, vmid_pre, v1_pre)

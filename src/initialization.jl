@@ -1,7 +1,6 @@
-import Meshes.measure
 
 """
-    M = measure(Φ::Function, c::Ngon)
+    M = smeasure(Φ::Function, c::Ngon)
 
 Compute the measure M occupied by the reference phase. I.e. compute the measure of the set
     𝕊 = {𝐱 ∈ c | Φ(𝐱) ≤ 0},
@@ -14,7 +13,7 @@ the diameter H of the Ngon):
 where κ is a bound on the curvature of the interface and h = H / nref. Here, we assume
 κ < 1 / h.
 """
-function Meshes.measure(Φ::Function, c::Ngon; nref::Int=8)
+function smeasure(Φ::Function, c::Ngon; nref::Int=8, workspace::StaticNgon=StaticNgon(c, nref*8))
     Φp(p::Point) = Φ(p.coords.x, p.coords.y)
     T = typeof(Φp(c.vertices[1]))
 
@@ -35,18 +34,19 @@ function Meshes.measure(Φ::Function, c::Ngon; nref::Int=8)
 
     # Quick return for trivial cases
     if all(inside_verts)
-        return measure(c)
+        return smeasure(c)
     elseif all(.!inside_verts)
         return 0u"m^2"
     end
 
-    Φc_approx, edge_is_hf = ngon_approx(Φrf, c, inside_verts, Method)
-    M = measure(Φc_approx)
-    for (edx, is_hf) = enumerate(edge_is_hf)
+    workspace, edge_is_hf = ngon_approx!(workspace, Φrf, c, inside_verts, Method)
+    M = smeasure(workspace)
+    for edx = 1 : workspace.nr_verts
+        is_hf = edge_is_hf[edx]
         if is_hf
             # We correct the measure M for each edge which is actually a height-function
-            v1 = Φc_approx.vertices[edx]
-            v2 = Φc_approx.vertices[edx == length(edge_is_hf) ? 1 : edx + 1]
+            v1 = workspace.vertices[edx]
+            v2 = workspace.vertices[mod1(edx + 1, workspace.nr_verts)]
 
             M += hf_measure(Φrf, v1, v2, Method)
         end
@@ -55,21 +55,22 @@ function Meshes.measure(Φ::Function, c::Ngon; nref::Int=8)
     return M
 end
 
-function ngon_approx(Φ::Function, c::Ngon, inside_verts::AbstractVector{Bool}, Method)
+function ngon_approx!(Φc_approx::StaticNgon{N}, Φ::Function, c::Ngon, inside_verts::AbstractVector{Bool}, Method) where N
     verts = c.vertices
 
     first_vdx = findfirst(inside_verts)
     vdx = first_vdx
 
-    new_verts = Vector{eltype(verts)}()
-    edge_is_hf = Vector{Bool}()
+    edge_is_hf = MVector{N, Bool}(undef)
 
+    new_idx = 0
     for _ = 1 : length(verts)
         next_vdx = vdx == length(verts) ? 1 : vdx + 1
 
         if inside_verts[vdx]
-            push!(new_verts, verts[vdx])
-            push!(edge_is_hf, false)
+            new_idx += 1
+            Φc_approx.vertices[new_idx] = verts[vdx]
+            edge_is_hf[new_idx] = false
         end
 
         if inside_verts[vdx] != inside_verts[next_vdx]
@@ -78,14 +79,17 @@ function ngon_approx(Φ::Function, c::Ngon, inside_verts::AbstractVector{Bool}, 
             v2 = verts[next_vdx]
             v(s) = v1 + (v2 - v1) * s
 
-            push!(new_verts, v(find_zero(Φ ∘ v, (0, 1), Method())))
-            push!(edge_is_hf, inside_verts[vdx])
+            new_idx += 1
+            Φc_approx.vertices[new_idx] = v(find_zero(Φ ∘ v, (0, 1), Method()))
+            edge_is_hf[new_idx] = inside_verts[vdx]
         end
 
         vdx = next_vdx
     end
 
-    return Ngon(new_verts...), edge_is_hf
+    Φc_approx.nr_verts = new_idx
+
+    return Φc_approx, edge_is_hf
 end
 
 function hf_measure(Φ::Function, v1::Point, v2::Point, Method)
@@ -107,7 +111,12 @@ function hf_measure(Φ::Function, v1::Point, v2::Point, Method)
     τ_gl, weight_gl = gausslegendre(16) # TODO: precompute?
     τ_gl = (τ_gl .+ 1)/2
 
-    return -h^2 * (hf.(τ_gl) ⋅ weight_gl) / 2
+    ans = 0
+    for (τ, weight) ∈ zip(τ_gl, weight_gl)
+        ans += hf(τ) * weight
+    end
+
+    return -h^2 * ans / 2
 end
 
 function refine_edges(c::Ngon; nref::Int=2)

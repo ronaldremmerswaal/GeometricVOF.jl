@@ -13,11 +13,11 @@ function symmetric_difference(Φ::Function, p::PlanarHS{2}, c::Ngon)
 
     M = 0u"m^2"
     if !isnothing(c_not_p)
-        M += measure(Φ, c_not_p)
+        M += smeasure(Φ, c_not_p)
     end
 
     if !isnothing(c_p)
-        M += measure(not_Φ, c_p)
+        M += smeasure(not_Φ, c_p)
     end
 
     return M

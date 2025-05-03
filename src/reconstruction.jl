@@ -1,5 +1,5 @@
 function reconstruct(p0::PlanarHS{2}, α_central::T, c_central::Ngon, αs::AbstractArray{T}, cs::SubDomain,
-    cmeasures::AbstractArray{Q}=measure.(cs); workspace::StaticNgon=StaticNgon(c_central), shift_workspace::MVector=MVector{32, Float64}(undef)) where {T <: Real, Q <: Quantity}
+    cmeasures::AbstractArray{Q}=smeasure.(cs); workspace::StaticNgon=StaticNgon(c_central), shift_workspace::MVector=MVector{32, Float64}(undef)) where {T <: Real, Q <: Quantity}
     ref_vol = smeasure(c_central) * α_central
 
     wrapped_costfun(θ::Real) = lvira_costfun(PlanarHS(θ, ref_vol, c_central; workspace=workspace, shift_workspace=shift_workspace), cs, αs, cmeasures, c_central, workspace=workspace)
@@ -32,7 +32,7 @@ function lvira_costfun(p::PlanarHS{2}, cs::SubDomain, αs::AbstractArray{T}, cme
         # If workspace.interface_index == 0 then there is no interface inside this cell
         if workspace.interface_index > 0
             iface = Segment(workspace.vertices[workspace.interface_index], workspace.vertices[mod1(workspace.interface_index + 1, workspace.nr_verts)]) # NOTE: this assumes the polygon is convex
-            iface_area = measure(iface)
+            iface_area = Meshes.measure(iface)
             iface_centroid = centroid(iface)
 
             derr_local = iface_area * (dshift - tangent ⋅ to(iface_centroid))
