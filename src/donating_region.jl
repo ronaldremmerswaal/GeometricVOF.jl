@@ -6,6 +6,10 @@ function tangent!(𝛕::AbstractVector, s::Segment{𝔼{2}})
     normalize!(𝛕)
 end
 
+
+normal_x(s::Segment{𝔼{2}}) = ustrip(s.vertices[2].coords.y - s.vertices[1].coords.y) / √(ustrip(s.vertices[2].coords.x - s.vertices[1].coords.x)^2 + ustrip(s.vertices[2].coords.y - s.vertices[1].coords.y)^2)
+normal_y(s::Segment{𝔼{2}}) = -ustrip(s.vertices[2].coords.x - s.vertices[1].coords.x) / √(ustrip(s.vertices[2].coords.x - s.vertices[1].coords.x)^2 + ustrip(s.vertices[2].coords.y - s.vertices[1].coords.y)^2)
+
 normal(s::Segment{𝔼{2}}) = normal!(zeros(2), s)
 function normal!(𝛈::AbstractVector, s::Segment{𝔼{2}})
     tangent!(𝛈, s)
@@ -77,13 +81,16 @@ function donating_region!(out::StaticNgon, s::Segment{𝔼{2}}, velo::AbstractVe
 
     if !isnothing(α)
         s_pre = Segment(v1_pre, v2_pre)
-        n = normal(s_pre)
+        n_x = normal_x(s_pre)
+        n_y = normal_y(s_pre)
 
         volume_err = smeasure(out) - α
-        dn = n * (2 *  volume_err / Meshes.measure(s_pre))
-        vmid_pre = v1_pre + (v2_pre - v1_pre) / 2 + Vec(dn...)
+        scaling = 2 *  volume_err / Meshes.measure(s_pre)
 
-        out.vertices[4] = vmid_pre
+        vmid_pre_x = (v1_pre.coords.x + v2_pre.coords.x) / 2 + n_x * scaling
+        vmid_pre_y = (v1_pre.coords.y + v2_pre.coords.y) / 2 + n_y * scaling
+
+        out.vertices[4] = Point(vmid_pre_x, vmid_pre_y)
         out.vertices[5] = v1_pre
         out.nr_verts = 5
     end
