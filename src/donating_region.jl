@@ -1,8 +1,16 @@
-tangent(s::Segment{𝔼{2}}) = normalize(s.vertices[2] - s.vertices[1])
+tangent(s::Segment{𝔼{2}}) = tangent!(zeros(2), s)
 
-function normal(s::Segment{𝔼{2}})
-    𝐭 = tangent(s)
-    [𝐭[2], -𝐭[1]]
+function tangent!(𝛕::AbstractVector, s::Segment{𝔼{2}})
+    𝛕[1] = ustrip(s.vertices[2].coords.x - s.vertices[1].coords.x)
+    𝛕[2] = ustrip(s.vertices[2].coords.y - s.vertices[1].coords.y)
+    normalize!(𝛕)
+end
+
+normal(s::Segment{𝔼{2}}) = normal!(zeros(2), s)
+function normal!(𝛈::AbstractVector, s::Segment{𝔼{2}})
+    tangent!(𝛈, s)
+    𝛈[1], 𝛈[2] = 𝛈[2], -𝛈[1]
+    𝛈
 end
 
 """

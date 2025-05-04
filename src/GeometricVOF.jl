@@ -10,8 +10,8 @@ using StaticArrays
 using ForwardMethods
 
 export PlanarHS, LVIRA, StaticNgon
-export measure, intersect, intersect!,  complement, shift, reconstruct, distance, donating_region,
-    smeasure, symmetric_difference, normal, tangent, sorted_unique_approx, donating_region!
+export measure, intersect, intersect!, complement, shift, reconstruct, distance, donating_region,
+    smeasure, symmetric_difference, normal, normal!, tangent, tangent!, sorted_unique_approx, donating_region!
 
 include("halfspace.jl")
 include("initialization.jl")
