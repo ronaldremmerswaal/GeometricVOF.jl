@@ -115,13 +115,12 @@ function Base.intersect!(out::StaticNgon{N, P}, verts::AbstractVector{P}, p::Pla
                (next_inside && coeff < 1 - tol)
                 out.nr_verts += 1
                 out.vertices[out.nr_verts] = curr_vert + coeff * (next_vert - curr_vert)
-
-                if out.interface_index == 0
-                    if curr_inside
-                        out.interface_index = out.nr_verts - 1
-                    else
-                        out.interface_index = out.nr_verts
-                    end
+            end
+            if out.interface_index == 0
+                if curr_inside
+                    out.interface_index = out.nr_verts - 1
+                else
+                    out.interface_index = out.nr_verts
                 end
             end
         end
