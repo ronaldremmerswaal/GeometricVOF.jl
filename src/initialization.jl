@@ -13,7 +13,7 @@ the diameter H of the Ngon):
 where κ is a bound on the curvature of the interface and h = H / nref. Here, we assume
 κ < 1 / h.
 """
-function smeasure(Φ::Function, c::Ngon; nref::Int=8, workspace::StaticNgon=StaticNgon(c, nref*8))
+function smeasure(Φ::Function, c::Ngon; nref::Int=8, workspace::StaticNgon=StaticNgon(c, nref*8), gl_data=gausslegendre(16))
     Φp(p::Point) = Φ(p.coords.x, p.coords.y)
     T = typeof(Φp(c.vertices[1]))
 
@@ -48,7 +48,7 @@ function smeasure(Φ::Function, c::Ngon; nref::Int=8, workspace::StaticNgon=Stat
             v1 = workspace.vertices[edx]
             v2 = workspace.vertices[mod1(edx + 1, workspace.nr_verts)]
 
-            M += hf_measure(Φrf, v1, v2, Method)
+            M += hf_measure(Φrf, v1, v2, Method, gl_data)
         end
     end
 
@@ -92,7 +92,7 @@ function ngon_approx!(Φc_approx::StaticNgon{N}, Φ::Function, c::Ngon, inside_v
     return Φc_approx, edge_is_hf
 end
 
-function hf_measure(Φ::Function, v1::Point, v2::Point, Method)
+function hf_measure(Φ::Function, v1::Point, v2::Point, Method, gl_data)
     ηmax = 1    # Length-scale (relative to norm(v1 - v2)) used in find_zero
 
     𝛕 = v1 - v2
@@ -108,7 +108,7 @@ function hf_measure(Φ::Function, v1::Point, v2::Point, Method)
     # For each τ, the value of the height-function results from solving a rootfinding problem
     hf(τ) = find_zero(η -> Φl(τ, η), (-ηmax, ηmax), Method())
 
-    τ_gl, weight_gl = gausslegendre(16) # TODO: precompute?
+    τ_gl, weight_gl = gl_data
     τ_gl = (τ_gl .+ 1)/2
 
     ans = 0
