@@ -13,7 +13,7 @@ the diameter H of the Ngon):
 where κ is a bound on the curvature of the interface and h = H / nref. Here, we assume
 κ < 1 / h.
 """
-function smeasure(Φ::Function, c::Ngon; nref::Int=8, workspace::StaticNgon=StaticNgon(c, nref*8), gl_data=gausslegendre(16))
+function smeasure(Φ::Function, c::Ngon; nref::Int=8, workspaces=(StaticNgon(c, nref*8), StaticNgon(c, nref*8)), gl_data=gausslegendre(16))
     Φp(p::Point) = Φ(p.coords.x, p.coords.y)
     T = typeof(Φp(c.vertices[1]))
 
@@ -26,24 +26,25 @@ function smeasure(Φ::Function, c::Ngon; nref::Int=8, workspace::StaticNgon=Stat
         Φrf = Φp
     end
 
-    c = refine_edges(c, nref=nref)  # Optional step that allows for detection of multiple
+    ref_c, workspace = workspaces
+
+    refine_edges!(ref_c, c, nref=nref)  # Optional step that allows for detection of multiple
                                     # intersections per edge
 
-    Φverts = Φrf.(c.vertices)
+    Φverts = Φrf.(view(ref_c.vertices, 1:ref_c.nr_verts))
     inside_verts = Φverts .≤ zero(T)
 
     # Quick return for trivial cases
     if all(inside_verts)
-        return smeasure(c)
+        return smeasure(ref_c)
     elseif all(.!inside_verts)
         return 0u"m^2"
     end
 
-    workspace, edge_is_hf = ngon_approx!(workspace, Φrf, c, inside_verts, Method)
+    workspace, edge_is_hf = ngon_approx!(workspace, Φrf, ref_c, inside_verts, Method)
     M = smeasure(workspace)
     for edx = 1 : workspace.nr_verts
-        is_hf = edge_is_hf[edx]
-        if is_hf
+        if edge_is_hf[edx]
             # We correct the measure M for each edge which is actually a height-function
             v1 = workspace.vertices[edx]
             v2 = workspace.vertices[mod1(edx + 1, workspace.nr_verts)]
@@ -55,17 +56,16 @@ function smeasure(Φ::Function, c::Ngon; nref::Int=8, workspace::StaticNgon=Stat
     return M
 end
 
-function ngon_approx!(Φc_approx::StaticNgon{N}, Φ::Function, c::Ngon, inside_verts::AbstractVector{Bool}, Method) where N
+function ngon_approx!(Φc_approx::StaticNgon{N}, Φ::Function, c::StaticNgon, inside_verts::AbstractVector{Bool}, Method) where N
     verts = c.vertices
 
-    first_vdx = findfirst(inside_verts)
-    vdx = first_vdx
+    vdx = findfirst(inside_verts)
 
     edge_is_hf = MVector{N, Bool}(undef)
 
     new_idx = 0
-    for _ = 1 : length(verts)
-        next_vdx = vdx == length(verts) ? 1 : vdx + 1
+    for _ = 1 : c.nr_verts
+        ndx = mod1(vdx + 1, c.nr_verts)
 
         if inside_verts[vdx]
             new_idx += 1
@@ -73,10 +73,10 @@ function ngon_approx!(Φc_approx::StaticNgon{N}, Φ::Function, c::Ngon, inside_v
             edge_is_hf[new_idx] = false
         end
 
-        if inside_verts[vdx] != inside_verts[next_vdx]
+        if inside_verts[vdx] != inside_verts[ndx]
             # Compute the new vertex
             v1 = verts[vdx]
-            v2 = verts[next_vdx]
+            v2 = verts[ndx]
             v(s) = v1 + (v2 - v1) * s
 
             new_idx += 1
@@ -84,7 +84,7 @@ function ngon_approx!(Φc_approx::StaticNgon{N}, Φ::Function, c::Ngon, inside_v
             edge_is_hf[new_idx] = inside_verts[vdx]
         end
 
-        vdx = next_vdx
+        vdx = ndx
     end
 
     Φc_approx.nr_verts = new_idx
@@ -109,34 +109,36 @@ function hf_measure(Φ::Function, v1::Point, v2::Point, Method, gl_data)
     hf(τ) = find_zero(η -> Φl(τ, η), (-ηmax, ηmax), Method())
 
     τ_gl, weight_gl = gl_data
-    τ_gl = (τ_gl .+ 1)/2
 
     ans = 0
     for (τ, weight) ∈ zip(τ_gl, weight_gl)
-        ans += hf(τ) * weight
+        ans += hf((τ + 1)/2) * weight
     end
 
     return -h^2 * ans / 2
 end
 
-function refine_edges(c::Ngon; nref::Int=2)
+function refine_edges!(ref_c::StaticNgon, c::Ngon; nref::Int=2)
     @assert nref ≥ 1 "Refinement nref (given by $nref) must be a positive integer"
-    if nref == 1
-        return c
-    end
+
     vs = vertices(c)
 
-    rvs = Vector{eltype(vs)}()
+    new_idx = 0
     for vdx ∈ eachindex(vs)
-        ndx = vdx == length(vs) ? 1 : vdx + 1
+        ndx = mod1(vdx + 1, length(vs))
 
         v = vs[vdx]
-        dir = vs[ndx] - vs[vdx]
-        push!(rvs, v)
+        dir = vs[ndx] - v
+
+        new_idx += 1
+        ref_c.vertices[new_idx] = v
         for rdx = 1 : nref - 1
-            push!(rvs, v + (rdx / nref) * dir)
+            new_idx += 1
+            ref_c.vertices[new_idx] = v + (rdx / nref) * dir
         end
     end
 
-    return Ngon(rvs...)
+    ref_c.nr_verts = new_idx
+
+    return ref_c
 end

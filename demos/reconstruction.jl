@@ -18,15 +18,15 @@ ax = Axis(fig[1, 1], aspect=1)
 # Show grid lines
 viz!(ax, mesh, showsegments=true, color=:white, segmentcolor=:gray)
 
-αs = reshape([measure(Φ, c) for c ∈ mesh], (N, N))
+αs = reshape([smeasure(Φ, c) / smeasure(c) for c ∈ mesh], (N, N))
 for i = 2 : N-1, j = 2 : N-1
     # On each interior cell the interface is reconstructed and plotted
-    recon = LVIRA(collect(mesh[i-1:i+1, j-1:j+1]), αs[i-1:i+1, j-1:j+1])
+
     c = mesh[i, j]
     xc = centroid(c)
     θ0 = atan(xc.coords.y, xc.coords.x) + .1
     p0 = PlanarHS{2}(GeometricVOF.angle_to_normal(θ0), 0u"m")
-    p_recon = reconstruct(recon, c, αs[i, j], p0)
+    p_recon = reconstruct(p0, αs[i, j], c, view(αs, i-1:i+1, j-1:j+1), view(mesh, i-1:i+1, j-1:j+1), p0)
 
     cp = c ∩ p_recon
     if !isnothing(cp)

@@ -197,7 +197,7 @@ using Test
             αs = reshape([smeasure(Φ, c) / smeasure(c) for c ∈ mesh], (N, N))
             sd_err = 0u"m^2"
             for i = 2 : N-1, j = 2 : N-1
-                if αs[i, j] == 0 || αs[i, j] == 1
+                if αs[i, j] < 1E-8 || αs[i, j] > 1-1E-8
                     continue
                 end
                 c = mesh[i, j]
