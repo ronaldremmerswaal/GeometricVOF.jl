@@ -46,15 +46,15 @@ function donating_region(s::Segment{𝔼{2}}, u::Function, dt::Quantity;
     donating_region(s, velo, dt, α=α)
 end
 
-function donating_region(s::Segment{𝔼{2}}, velo::AbstractVector{Vector{T}},
-    dt::Quantity; α::Union{Nothing, Quantity}=nothing) where T<:Quantity
+function donating_region(s::Segment{𝔼{2}}, velo::AbstractVector,
+    dt::Quantity; α::Union{Nothing, Quantity}=nothing)
 
     out = StaticNgon(eltype(s.vertices))
     Ngon(donating_region!(out, s, velo, dt; α=α))
 end
 
-function donating_region!(out::StaticNgon, s::Segment{𝔼{2}}, velo::AbstractVector{Vector{T}},
-    dt::Quantity; α::Union{Nothing, Quantity}=nothing) where T<:Quantity
+function donating_region!(out::StaticNgon, s::Segment{𝔼{2}}, velo::AbstractVector,
+    dt::Quantity; α::Union{Nothing, Quantity}=nothing)
 
     v1, v2 = vertices(s)
 
