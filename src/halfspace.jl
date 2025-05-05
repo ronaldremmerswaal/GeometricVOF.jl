@@ -88,6 +88,7 @@ function Base.intersect!(out::StaticNgon{N, P}, verts::AbstractVector{P}, p::Pla
     next_dist = 0u"m"
     next_inside = false
     out.interface_index = 0
+    any_bisected = false
     for (cdx, curr_vert) ∈ enumerate(verts)
         ndx = mod1(cdx + 1, nr_old_verts)
 
@@ -108,6 +109,7 @@ function Base.intersect!(out::StaticNgon{N, P}, verts::AbstractVector{P}, p::Pla
         end
 
         edge_is_bisected = curr_inside != next_inside
+        any_bisected = any_bisected || edge_is_bisected
 
         if edge_is_bisected
             coeff = abs(curr_dist / (next_dist - curr_dist))
@@ -124,6 +126,10 @@ function Base.intersect!(out::StaticNgon{N, P}, verts::AbstractVector{P}, p::Pla
                 end
             end
         end
+    end
+
+    if any_bisected && out.interface_index == 0
+        out.interface_index = out.nr_verts
     end
 
     return out
