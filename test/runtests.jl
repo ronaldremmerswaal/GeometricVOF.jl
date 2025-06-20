@@ -138,28 +138,44 @@ using Test
         end
     end
 
-    @testset "symmetric_difference (Δ)" begin
-        # Exact: Δ = zero
-        c = Quadrangle((0, 0), (1, 0), (1, 1), (0, 1))
-        p = PlanarHS([0, 1], .5u"m")
-        Φ(x, y) = y - .5u"m" # TODO also for Bool
-        @test symmetric_difference(Φ, p, c) == 0u"m^2"
+    @testset "symmetric_difference" begin
+        @testset "Φ Δ p" begin
+            # Exact: Δ = zero
+            c = Quadrangle((0, 0), (1, 0), (1, 1), (0, 1))
+            p = PlanarHS([0, 1], .5u"m")
+            Φ(x, y) = y - .5u"m" # TODO also for Bool
+            @test symmetric_difference(Φ, p, c) == 0u"m^2"
 
-        # Simple: Δ is difference between planes
-        p = PlanarHS([0, 1], .4u"m")
-        @test isapprox(symmetric_difference(Φ, p, c), .1u"m^2", rtol=10eps())
+            # Simple: Δ is difference between planes
+            p = PlanarHS([0, 1], .4u"m")
+            @test isapprox(symmetric_difference(Φ, p, c), .1u"m^2", rtol=10eps())
 
-        p = PlanarHS([0, -1], -.5u"m")
-        @test isapprox(symmetric_difference(Φ, p, c), 1u"m^2", rtol=10eps())
+            p = PlanarHS([0, -1], -.5u"m")
+            @test isapprox(symmetric_difference(Φ, p, c), 1u"m^2", rtol=10eps())
 
-        # Nontrivial: planar approximation to parabola (correct volume)
-        f(x, ε) = .5u"m" + ε * (x - .5u"m")^2/u"m" - ε * u"m" / 12
-        p = PlanarHS([0, 1], .5u"m")
-        for ε ∈ 10. .^(-4 : -1)
-            Φε(x, y) = y - f(x, ε)
-            xs = 1/2 - 1/√12
-            @test isapprox(symmetric_difference(Φε, p, c), ε * (4/3 * xs^3 - 2xs^2 +
-                2/3 * xs - 1/24 + 1/8 - 1/12)u"m^2", rtol=10eps()/ε)
+            # Nontrivial: planar approximation to parabola (correct volume)
+            f(x, ε) = .5u"m" + ε * (x - .5u"m")^2/u"m" - ε * u"m" / 12
+            p = PlanarHS([0, 1], .5u"m")
+            for ε ∈ 10. .^(-4 : -1)
+                Φε(x, y) = y - f(x, ε)
+                xs = 1/2 - 1/√12
+                @test isapprox(symmetric_difference(Φε, p, c), ε * (4/3 * xs^3 - 2xs^2 +
+                    2/3 * xs - 1/24 + 1/8 - 1/12)u"m^2", rtol=10eps()/ε)
+            end
+        end
+
+        @testset "p1 Δ p2" begin
+            # Exact: Δ = zero
+            c = Quadrangle((0, 0), (1, 0), (1, 1), (0, 1))
+            p1 = PlanarHS([0, 1], .5u"m")
+            @test symmetric_difference(p1, p1, c) == 0u"m^2"
+
+            # Simple: Δ is difference between planes
+            p2 = PlanarHS([0, 1], .4u"m")
+            @test isapprox(symmetric_difference(p1, p2, c), .1u"m^2", rtol=10eps())
+
+            p2 = PlanarHS([0, -1], -.5u"m")
+            @test isapprox(symmetric_difference(p1, p2, c), 1u"m^2", rtol=10eps())
         end
     end
 

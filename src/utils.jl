@@ -13,11 +13,34 @@ function symmetric_difference(Φ::Function, p::PlanarHS{2}, c::Ngon)
 
     M = 0u"m^2"
     if !isnothing(c_not_p)
-        M += smeasure(Φ, c_not_p)
+        M += abs(smeasure(Φ, c_not_p))
     end
 
     if !isnothing(c_p)
-        M += smeasure(not_Φ, c_p)
+        M += abs(smeasure(not_Φ, c_p))
+    end
+
+    return M
+end
+
+"""
+    symmetric_difference(p1, p2, c)
+
+Computes the area of the symmetric difference between the halfspace defined by p1 and p2
+within c. I.e. the following symmetric difference is computed
+    {𝐱 ∈ c | p1.𝛈 ⋅ 𝐱 - p1.shift ≤ 0} Δ {𝐱 ∈ c | p2.𝛈 ⋅ 𝐱 - p2.shift ≤ 0}
+"""
+function symmetric_difference(p1::PlanarHS{2}, p2::PlanarHS{2}, c::Ngon)
+    c_p1 = c ∩ p1
+    c_not_p1 = c ∩ complement(p1)
+
+    M = 0u"m^2"
+    if !isnothing(c_not_p1)
+        M += abs(smeasure(p2, c_not_p1))
+    end
+
+    if !isnothing(c_p1)
+        M += abs(smeasure(complement(p2), c_p1))
     end
 
     return M
