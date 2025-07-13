@@ -8,6 +8,7 @@ using Roots
 using Unitful
 using StaticArrays
 using ForwardMethods
+using Printf
 
 export PlanarHS, LVIRA, StaticNgon
 export measure, intersect, intersect!, complement, shift, reconstruct, distance, donating_region,

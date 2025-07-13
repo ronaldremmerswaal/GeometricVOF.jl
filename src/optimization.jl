@@ -1,4 +1,4 @@
-function brent_min(f_and_df::Function, x0::Real; xtol::Real=√(eps(typeof(x0))), maxiters::Int=25, step_max::Real=floatmax(typeof(x0)))
+function brent_min(f_and_df::Function, x0::Real; xtol::Real=√(eps(typeof(x0))), maxiters::Int=25, step_max::Real=floatmax(typeof(x0)), verbose::Bool=false)
     # 1: find a bracket using Newton's method
     # 2: apply Brent's method to the derivative to find the minimum
 
@@ -11,7 +11,15 @@ function brent_min(f_and_df::Function, x0::Real; xtol::Real=√(eps(typeof(x0)))
 
     converged = false
 
+    if verbose
+        @printf("|       Starting iterations brent_min     |\n")
+        @printf("| %3s | %9s | %9s | %9s |\n", "it", "x", "f(x)", "df(x)")
+    end
+
     while df * df_prev > 0 && it < maxiters
+        if verbose
+            @printf("| %3d | %9.6f | %9.2e | %9.2e |\n", it, x, f, df)
+        end
 
         x_prev, df_prev = x, df
         step = - 2f / df
@@ -27,21 +35,20 @@ function brent_min(f_and_df::Function, x0::Real; xtol::Real=√(eps(typeof(x0)))
 
         f, df = f_and_df(x)
 
-        # println("it: $it, x: $x, f: $f, df: $df")
         it += 1
     end
 
     if converged
         return x
     elseif df * df_prev > 0
-        @warn "Failed to find a bracket"
+        @warn "brent_min: failed to find a bracket"
         return x
-    elseif it >= maxiters
-        @warn "Maximum iterations reached"
-        return x
+    elseif verbose
+        @printf("| %3d | %9.6f | %9.2e | %9.2e |\n", it, x, f, df)
+        @printf("|        Finished Newton iterations       |\n")
     end
 
-    find_zero(x -> f_and_df(x)[2], (x_prev, x), Roots.Brent(), maxiters=maxiters-it)
+    find_zero(x -> f_and_df(x)[2], (x_prev, x), Roots.Brent(), maxiters=maxiters-it, verbose=verbose)
 end
 
 function parabola_roots(A::T, B::T, C::T) where T

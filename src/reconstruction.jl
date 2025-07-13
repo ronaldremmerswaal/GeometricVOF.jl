@@ -1,11 +1,11 @@
-function reconstruct(p0::PlanarHS{2}, α_central::T, c_central::Ngon, αs::AbstractArray{T}, cs::SubDomain,
+function reconstruct(p0::PlanarHS{2}, α_central::T, c_central::Ngon, αs::AbstractArray{T}, cs::SubDomain, verbose::Bool=false,
     cmeasures::AbstractArray{Q}=smeasure.(cs); workspace::StaticNgon=StaticNgon(c_central), shift_workspace::MVector=MVector{32, Float64}(undef)) where {T <: Real, Q <: Quantity}
     ref_vol = smeasure(c_central) * α_central
 
     wrapped_costfun(θ::Real) = lvira_costfun(PlanarHS(θ, ref_vol, c_central; workspace=workspace, shift_workspace=shift_workspace), cs, αs, cmeasures, c_central, workspace=workspace)
 
     θ0 = GeometricVOF.normal_to_angle(p0.𝛈)
-    θ = brent_min(wrapped_costfun, θ0; xtol=1E-8, maxiters=25, step_max=.5)
+    θ = brent_min(wrapped_costfun, θ0; xtol=1E-8, maxiters=25, step_max=.5, verbose=verbose)
 
     return PlanarHS(θ, ref_vol, c_central; workspace=workspace, shift_workspace=shift_workspace)
 end
