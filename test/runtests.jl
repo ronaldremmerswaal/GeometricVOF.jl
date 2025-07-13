@@ -203,7 +203,7 @@ using Test
             localcmeasures = [smeasure(c) for c ∈ localmesh]
             localαs = view(αs, i-1:i+1, j-1:j+1)
 
-            f_df(θ::Real) = GeometricVOF.lvira_costfun(PlanarHS(θ, ref_vol, mesh[inds[i, j]]), localmesh, localαs, localcmeasures, mesh[inds[i, j]])
+            f_df(θ::Real) = GeometricVOF.lvira_costfun(PlanarHS(θ, ref_vol, c), localmesh, localαs, localcmeasures, c)
             f(θ::Real) = f_df(θ)[1]
             df(θ::Real) = f_df(θ)[2]
             h = 1E-6
