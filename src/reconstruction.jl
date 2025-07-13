@@ -29,6 +29,8 @@ function lvira_costfun(p::PlanarHS{2}, cs::SubDomain, αs::AbstractArray{T}, cme
         end
         err_local = smeasure(workspace) / cmeas - α
 
+        ω = 1 / (α * (1 - α) + 1E-2)
+
         # If workspace.interface_index == 0 then there is no interface inside this cell
         if workspace.interface_index > 0
             iface = Segment(workspace.vertices[workspace.interface_index], workspace.vertices[mod1(workspace.interface_index + 1, workspace.nr_verts)]) # NOTE: this assumes the polygon is convex
@@ -36,10 +38,10 @@ function lvira_costfun(p::PlanarHS{2}, cs::SubDomain, αs::AbstractArray{T}, cme
             iface_centroid = centroid(iface)
 
             derr_local = iface_area * (dshift - tangent ⋅ to(iface_centroid))
-            derr += + 2 * err_local * derr_local / cmeas
+            derr += 2ω * err_local * derr_local / cmeas
         end
 
-        err += err_local^2
+        err += ω * err_local^2
     end
 
     return err, derr
