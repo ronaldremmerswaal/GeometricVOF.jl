@@ -179,6 +179,46 @@ using Test
         end
     end
 
+    @testset "lvira_derivative" begin
+        # Test if the derivative of the LVIRA cost function is correct
+        R = 0.3u"m"
+        Φ(x, y) = x^2 + y^2 - R^2 * (1 + .1sin(.1 + 5atan(y, x)))^2
+
+        N = 32
+        h = 1 / N
+        mesh = CartesianGrid((N, N), (-.5, -.5), (h, h))
+
+        inds = LinearIndices(size(mesh))
+
+        αs = reshape([smeasure(Φ, c) / smeasure(c) for c ∈ mesh], (N, N))
+        for i = 2 : N-1, j = 2 : N-1
+            if αs[i, j] < 1E-8 || αs[i, j] > 1-1E-8
+                continue
+            end
+            c = mesh[i, j]
+            xc = centroid(c)
+
+            ref_vol = αs[i, j] * smeasure(c)
+            localmesh = view(mesh, inds[i-1:i+1, j-1:j+1][:])
+            localcmeasures = [smeasure(c) for c ∈ localmesh]
+            localαs = view(αs, i-1:i+1, j-1:j+1)
+
+            f_df(θ::Real) = GeometricVOF.lvira_costfun(PlanarHS(θ, ref_vol, mesh[inds[i, j]]), localmesh, localαs, localcmeasures, mesh[inds[i, j]])
+            f(θ::Real) = f_df(θ)[1]
+            df(θ::Real) = f_df(θ)[2]
+            h = 1E-6
+
+            for θ ∈ 0 : 0.1 : 2π
+                df_exact = df(θ)
+                df_num = (f(θ + h) - f(θ - h)) / (2 * h)
+                @test df_exact ≈ df_num atol=1E-6
+            end
+
+        end
+
+
+    end
+
     @testset "reconstruction" begin
         # Test if linear interface is reconstructed exactly
         mesh = CartesianGrid((3, 3), (-.5, -.5), (1/3, 1/3))
