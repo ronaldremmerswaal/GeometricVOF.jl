@@ -196,9 +196,8 @@ using Test
                 continue
             end
             c = mesh[i, j]
-            xc = centroid(c)
-
             ref_vol = αs[i, j] * smeasure(c)
+
             localmesh = view(mesh, inds[i-1:i+1, j-1:j+1][:])
             localcmeasures = [smeasure(c) for c ∈ localmesh]
             localαs = view(αs, i-1:i+1, j-1:j+1)
@@ -206,13 +205,12 @@ using Test
             f_df(θ::Real) = GeometricVOF.lvira_costfun(PlanarHS(θ, ref_vol, c), localmesh, localαs, localcmeasures, c)
             f(θ::Real) = f_df(θ)[1]
             df(θ::Real) = f_df(θ)[2]
-            h = 1E-6
+            dh = 1E-6
 
-            for θ ∈ 0 : 0.1 : 2π
-                df_exact = df(θ)
-                df_num = (f(θ + h) - f(θ - h)) / (2 * h)
-                @test df_exact ≈ df_num atol=1E-6
-            end
+            θs = 0 : 0.1 : 2π
+            df_exact = [df(θ) for θ ∈ θs]
+            df_num = [(f(θ + dh) - f(θ - dh)) / (2dh) for θ ∈ θs]
+            @test isapprox(df_exact, df_num, rtol=1E-6)
 
         end
 

@@ -120,16 +120,16 @@ function Base.intersect!(out::StaticNgon{N, P}, verts::AbstractVector{P}, p::Pla
             end
             if out.interface_index == 0
                 if curr_inside
-                    out.interface_index = out.nr_verts - 1
-                else
                     out.interface_index = out.nr_verts
+                else
+                    out.interface_index = out.nr_verts - 1
                 end
             end
         end
     end
 
-    if any_bisected && out.interface_index == 0
-        out.interface_index = out.nr_verts
+    if any_bisected
+        out.interface_index = mod1(out.interface_index, out.nr_verts)
     end
 
     return out
