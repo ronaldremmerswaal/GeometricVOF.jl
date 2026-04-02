@@ -34,7 +34,7 @@ function brent_min(f_and_df::Function, x0::Real; xatol::Real=√(eps(typeof(x0))
     end
 
     if df * df_prev > 0
-        @warn "brent_min: failed to find a bracket"
+        if abs(df) > 100eps(typeof(df)) @warn "brent_min: failed to find a bracket, final x = $x, f = $f, df = $df" end
         return x
     elseif verbose
         @printf("| %3d | %9.6f | %9.2e | %9.2e |\n", it, x, f, df)
