@@ -55,7 +55,7 @@ function parabola_roots(A::T, B::T, C::T) where T
             x1 = -C / B
             x2 = x1
         end
-    elseif C == 0 then
+    elseif C == 0
         x1 = -B / A
         x2 = 0.0
     else
