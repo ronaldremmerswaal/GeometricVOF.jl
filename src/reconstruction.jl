@@ -11,17 +11,18 @@ function reconstruct(p0::PlanarHS{2}, α_central::T, c_central::Ngon, αs::Abstr
 end
 
 function lvira_costfun(p::PlanarHS{2}, cs::SubDomain, αs::AbstractArray{T}, cmeasures::AbstractArray{Q}, c_central::Ngon; workspace::StaticNgon=StaticNgon(c_central)) where {T <: Real, Q <: Quantity}
-    err = 0    # Value
-    derr = 0   # Derivative w.r.t. the angle
+    err  = 0.0   # initialise as Float64 to avoid Int→Float type change mid-loop
+    derr = 0.0
 
     intersect!(workspace, c_central, p)
 
-    c_iface = Segment(workspace.vertices[workspace.interface_index], workspace.vertices[mod1(workspace.interface_index + 1, workspace.nr_verts)]) # NOTE: this assumes the polygon is convex
-    # c_iface_area = measure(c_iface)
-    c_iface_centroid = centroid(c_iface)
+    # Centroid of the central interface edge — computed inline to avoid Segment/centroid allocs
+    ci1 = workspace.vertices[workspace.interface_index]
+    ci2 = workspace.vertices[mod1(workspace.interface_index + 1, workspace.nr_verts)]
     tangent = SVector(-p.𝛈[2], p.𝛈[1])
 
-    dshift = tangent ⋅ to(c_iface_centroid) # The shift derivative that ensures that the central volume is invariant
+    dshift = tangent[1] * (ci1.coords.x + ci2.coords.x) / 2 +
+             tangent[2] * (ci1.coords.y + ci2.coords.y) / 2  # ≡ tangent ⋅ centroid(c_iface)
     for (c, α, cmeas) ∈ zip(cs, αs, cmeasures)
         intersect!(workspace, c, p)
         if workspace.nr_verts < 3
@@ -33,11 +34,16 @@ function lvira_costfun(p::PlanarHS{2}, cs::SubDomain, αs::AbstractArray{T}, cme
 
         # If workspace.interface_index == 0 then there is no interface inside this cell
         if workspace.interface_index > 0
-            iface = Segment(workspace.vertices[workspace.interface_index], workspace.vertices[mod1(workspace.interface_index + 1, workspace.nr_verts)]) # NOTE: this assumes the polygon is convex
-            iface_area = Meshes.measure(iface)
-            iface_centroid = centroid(iface)
+            # Inline segment measure and centroid — avoids Segment + centroid + to() allocations
+            iv1 = workspace.vertices[workspace.interface_index]
+            iv2 = workspace.vertices[mod1(workspace.interface_index + 1, workspace.nr_verts)]
+            idx = iv2.coords.x - iv1.coords.x
+            idy = iv2.coords.y - iv1.coords.y
+            iface_area = sqrt(idx^2 + idy^2)   # ≡ Meshes.measure(Segment(iv1,iv2))
+            iface_cx   = (iv1.coords.x + iv2.coords.x) / 2
+            iface_cy   = (iv1.coords.y + iv2.coords.y) / 2
 
-            derr_local = iface_area * (dshift - tangent ⋅ to(iface_centroid))
+            derr_local = iface_area * (dshift - (tangent[1] * iface_cx + tangent[2] * iface_cy))
             derr += 2ω * err_local * derr_local / cmeas
         end
 

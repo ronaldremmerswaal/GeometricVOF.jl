@@ -42,21 +42,25 @@ mesh = CartesianGrid((N, N), (0.0, 0.0), (1.0/N, 1.0/N))
 inds = LinearIndices(size(mesh))
 
 println("  Building αs ($(N)×$(N) grid)…")
-αs = reshape([smeasure(Φ, c) / smeasure(c) for c ∈ mesh], (N, N))
-println("  Interface cells: $(count(α -> 1e-6 < ustrip(α) < 1 - 1e-6, αs))")
+# ustrip: smeasure(Φ,c)/smeasure(c) is a dimensionless Unitful Quantity which is not <: Real;
+# reconstruct requires T <: Real, so we store plain Float64 from the start.
+αs = reshape([Float64(ustrip(smeasure(Φ, c) / smeasure(c))) for c ∈ mesh], (N, N))
+println("  Interface cells: $(count(α -> 1e-6 < α < 1 - 1e-6, αs))")
 
-# First interior interface cell (avoid boundary strip)
-i0, j0 = 0, 0
-for i in 2:N-1, j in 2:N-1
-    if 1e-4 < ustrip(αs[i, j]) < 1 - 1e-4
-        i0, j0 = i, j
-        break
+# First interior interface cell — use let to avoid soft-scope assignment warnings
+i0, j0 = let result = (0, 0)
+    for i in 2:N-1, j in 2:N-1
+        if 1e-4 < αs[i, j] < 1 - 1e-4
+            result = (i, j)
+            break
+        end
     end
+    result
 end
 i0 > 0 || error("No interior interface cell found — check Φ or grid size")
 c_central = mesh[i0, j0]
-α_central = αs[i0, j0]
-println("  Representative cell: ($i0, $j0),  α = $(round(ustrip(α_central), sigdigits=4))")
+α_central = αs[i0, j0]   # Float64
+println("  Representative cell: ($i0, $j0),  α = $(round(α_central, sigdigits=4))")
 
 # 3×3 neighbourhood (same layout as benchmark/reconstruction.jl)
 flat_inds       = inds[i0-1:i0+1, j0-1:j0+1][:]
@@ -74,7 +78,7 @@ smeasure_workspaces = (StaticNgon(c_central, 8 * 8),  # refine_edges! output (nr
 # ── Half-space: initial guess and converged solution ─────────────────────────
 θ0      = 0.7   # representative angle (radians) — same as benchmark/shift.jl
 𝛈₀      = GeometricVOF.angle_to_normal(θ0)
-ref_vol = smeasure(c_central) * α_central
+ref_vol = smeasure(c_central) * α_central  # Quantity{Float64, m^2} — fine for shift/PlanarHS
 p0      = PlanarHS(𝛈₀, 0u"m")
 p_shift = PlanarHS(θ0, ref_vol, c_central; workspace=workspace, shift_workspace=shift_workspace)
 
@@ -311,7 +315,7 @@ JET issues found:
   smeasure(Φ, c)     : $(has_smeasure_phi  ? "YES — see above" : "none")
   lvira_costfun      : $(has_costfun    ? "YES — see above" : "none")
   donating_region!   : $(has_donating   ? "YES — see above" : "none")
-  reconstruct        : $(has_reconstruct? "YES — see above" : "none")
+  reconstruct        : $(has_reconstruct ? "YES — see above" : "none")
 
 Throughput (median):
   reconstruct    (full LVIRA)   : $(BenchmarkTools.median(b_reconstruct))

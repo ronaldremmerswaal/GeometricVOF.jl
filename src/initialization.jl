@@ -13,7 +13,7 @@ the diameter H of the Ngon):
 where κ is a bound on the curvature of the interface and h = H / nref. Here, we assume
 κ < 1 / h.
 """
-function smeasure(Φ::Function, c::Ngon; nref::Int=8, workspaces=(StaticNgon(c, nref*8), StaticNgon(c, nref*8)), gl_data=gausslegendre(16))
+function smeasure(Φ::F, c::Ngon; nref::Int=8, workspaces=(StaticNgon(c, nref*8), StaticNgon(c, nref*8)), gl_data=gausslegendre(16)) where {F}
     Φp(p::Point) = Φ(p.coords.x, p.coords.y)
     T = typeof(Φp(c.vertices[1]))
 
@@ -56,7 +56,7 @@ function smeasure(Φ::Function, c::Ngon; nref::Int=8, workspaces=(StaticNgon(c, 
     return M
 end
 
-function ngon_approx!(Φc_approx::StaticNgon{N}, Φ::Function, c::StaticNgon, inside_verts::AbstractVector{Bool}, Method) where N
+function ngon_approx!(Φc_approx::StaticNgon{N}, Φ::F, c::StaticNgon, inside_verts::AbstractVector{Bool}, Method) where {N, F}
     verts = c.vertices
 
     vdx = findfirst(inside_verts)
@@ -92,7 +92,7 @@ function ngon_approx!(Φc_approx::StaticNgon{N}, Φ::Function, c::StaticNgon, in
     return Φc_approx, edge_is_hf
 end
 
-function hf_measure(Φ::Function, v1::Point, v2::Point, Method, gl_data)
+function hf_measure(Φ::F, v1::Point, v2::Point, Method, gl_data) where {F}
     ηmax = 1    # Length-scale (relative to norm(v1 - v2)) used in find_zero
 
     𝛕 = v1 - v2

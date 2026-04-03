@@ -267,6 +267,9 @@ function shift(c::Ngon, 𝛈::SVector{2}, αvol::Quantity; workspace::StaticNgon
         α_err_prev = α_err_curr
     end
 
+    # Unreachable for valid inputs (monotone bracket guaranteed by IVT).
+    # Explicit error keeps the return type as Quantity (not Union{Quantity,Nothing}).
+    error("GeometricVOF.shift: no bracket found — possible numerical degeneracy (αvol=$αvol)")
 end
 
 function shift_extrema(c::Ngon, 𝛈::SVector{2})

@@ -1,4 +1,4 @@
-function brent_min(f_and_df::Function, x0::Real; xatol::Real=√(eps(typeof(x0))), xrtol::Real=0, maxiters::Int=25, step_max::Real=floatmax(typeof(x0)), verbose::Bool=false)
+function brent_min(f_and_df::F, x0::Real; xatol::Real=√(eps(typeof(x0))), xrtol::Real=0, maxiters::Int=25, step_max::Real=floatmax(typeof(x0)), verbose::Bool=false) where {F}
     # 1: find a bracket using Newton's method
     # 2: apply Brent's method to the derivative to find the minimum
 
@@ -41,7 +41,59 @@ function brent_min(f_and_df::Function, x0::Real; xatol::Real=√(eps(typeof(x0))
         @printf("|        Finished Newton iterations       |\n")
     end
 
-    find_zero(x -> f_and_df(x)[2], (x_prev, x), Roots.Brent(), maxiters=maxiters-it, verbose=verbose, xatol=xatol, xrtol=xrtol)
+    _brent_zero(x -> f_and_df(x)[2], x_prev, x, df_prev, df;
+                xatol=typeof(x0)(xatol), maxiters=maxiters-it)
+end
+
+"""
+Zero-allocation Brent root-finding on interval [a, b] (or [b, a]).
+Requires f(a) and f(b) to have opposite signs (fa, fb provided to avoid recomputing).
+"""
+function _brent_zero(f::F, a::T, b::T, fa::T, fb::T;
+                     xatol::T=√eps(T), maxiters::Int=50) where {F, T<:AbstractFloat}
+    c, fc = a, fa
+    d = e = b - a
+    for _ in 1:maxiters
+        if fb * fc > 0
+            c, fc = a, fa
+            d = e = b - a
+        end
+        if abs(fc) < abs(fb)
+            a, b = b, c
+            fa, fb = fb, fc
+            c, fc = a, fa
+        end
+        tol = 2eps(T) * abs(b) + xatol / 2
+        m   = (c - b) / 2
+        (abs(m) ≤ tol || fb == 0) && return b
+        if abs(e) < tol || abs(fa) ≤ abs(fb)
+            d = e = m   # bisection step
+        else
+            s = fb / fa
+            if a == c
+                # secant step
+                p = 2m * s
+                q = 1 - s
+            else
+                # inverse quadratic interpolation
+                q = fa / fc
+                r = fb / fc
+                p = s * (2m * q * (q - r) - (b - a) * (r - 1))
+                q = (q - 1) * (r - 1) * (s - 1)
+            end
+            if p > 0; q = -q else p = -p end
+            s = e; e = d
+            if 2p < 3m * q - abs(tol * q) && p < abs(s * q / 2)
+                d = p / q
+            else
+                d = e = m
+            end
+        end
+        a, fa = b, fb
+        b += abs(d) > tol ? d : (m > 0 ? tol : -tol)
+        fb = f(b)
+    end
+    return b
 end
 
 function parabola_roots(A::T, B::T, C::T) where T

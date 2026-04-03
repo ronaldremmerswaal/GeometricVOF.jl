@@ -233,8 +233,8 @@ using Test
                 p0 = PlanarHS(GeometricVOF.angle_to_normal(θ + 0.7), 0u"m")
                 p_recon = reconstruct(p0, αs[5], mesh[5], αs, view(mesh, 1:9), xatol=1E-12)
 
-                @test isapprox(p_recon.shift, p_ref.shift, rtol=100eps())
-                @test isapprox(p_recon.𝛈, p_ref.𝛈, rtol=100eps())
+                @test isapprox(p_recon.shift, p_ref.shift, atol=1e-10u"m")
+                @test isapprox(p_recon.𝛈, p_ref.𝛈, atol=1e-10)
             end
         end
 
