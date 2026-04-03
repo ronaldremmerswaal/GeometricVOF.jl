@@ -75,7 +75,7 @@ function Base.intersect!(out::StaticNgon{N, P}, c::Ngon, p::PlanarHS{2}; tol::Re
     intersect!(out, c.vertices, p; tol=tol)
 end
 
-function Base.intersect!(out::StaticNgon{N, P}, in::StaticNgon{N, P}, p::PlanarHS{2}; tol::Real=√eps(typeof(c.vertices[1].coords.x.val))) where {N, P<:Point}
+function Base.intersect!(out::StaticNgon{N, P}, in::StaticNgon{N, P}, p::PlanarHS{2}; tol::Real=√eps()) where {N, P<:Point}
     intersect!(out, view(in.vertices, 1:in.nr_verts), p; tol=tol)
 end
 
