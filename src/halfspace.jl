@@ -272,6 +272,69 @@ function shift(c::Ngon, 𝛈::SVector{2}, αvol::Quantity; workspace::StaticNgon
     error("GeometricVOF.shift: no bracket found — possible numerical degeneracy (αvol=$αvol)")
 end
 
+function shift(c::StaticNgon{N, P}, 𝛈::SVector{2}, αvol::Quantity; workspace::StaticNgon=StaticNgon(P), shift_workspace::MVector=MVector{32, Float64}(undef)) where {N, P<:Point}
+
+    α_err(p) = smeasure(intersect!(workspace, c, p)) - αvol
+
+    n_verts = c.nr_verts
+    for vdx ∈ 1:n_verts
+        v = c.vertices[vdx]
+        shift_workspace[vdx] = ustrip(𝛈[1] * v.coords.x + 𝛈[2] * v.coords.y)
+    end
+
+    sort!(view(shift_workspace, 1:n_verts))
+    α_err_prev = -αvol
+
+    c_measure = smeasure(c)
+
+    if αvol == 0u"m^2"
+        return shift_workspace[1]u"1m"
+    elseif αvol == c_measure
+        return shift_workspace[n_verts]u"1m"
+    end
+
+    for i ∈ 2:n_verts
+        if i == n_verts
+            α_err_curr = c_measure - αvol
+        else
+            α_err_curr = α_err(PlanarHS{2}(𝛈, shift_workspace[i]u"1m"))
+        end
+
+        if α_err_curr == 0u"m^2" return shift_workspace[i]u"1m" end
+
+        if sign(α_err_curr) != sign(α_err_prev)
+            shift0 = shift_workspace[i - 1]u"1m"
+            shift2 = shift_workspace[i]u"1m"
+            shift1 = (shift0 + shift2) / 2
+
+            α_err0 = ustrip(α_err_prev)
+            α_err1 = ustrip(α_err(PlanarHS{2}(𝛈, shift1)))
+            α_err2 = ustrip(α_err_curr)
+
+            h = ustrip(shift2 - shift1)
+            A = (.5α_err2 - α_err1 + .5α_err0) / h^2
+            B = (α_err2 - α_err0) / 2h
+            C = α_err1
+
+            x1, x2, = parabola_roots(A, B, C)
+            x1u = shift1 + x1*u"m"
+            x2u = shift1 + x2*u"m"
+
+            return shift0 ≤ x1u ≤ shift2 ? x1u : x2u
+        end
+
+        α_err_prev = α_err_curr
+    end
+
+    error("GeometricVOF.shift: no bracket found — possible numerical degeneracy (αvol=$αvol)")
+end
+
+function PlanarHS(θ::T, αvol::Quantity, c::StaticNgon{N, P}; workspace::StaticNgon=StaticNgon(P), shift_workspace::MVector=MVector{32, Float64}(undef)) where {T <: Real, N, P<:Point}
+    𝛈 = GeometricVOF.angle_to_normal(θ)
+    s = shift(c, 𝛈, αvol; workspace=workspace, shift_workspace=shift_workspace)
+    return PlanarHS{2}(𝛈, s)
+end
+
 function shift_extrema(c::Ngon, 𝛈::SVector{2})
     shift_min = floatmax()u"m"
     shift_max = floatmin()u"m"
