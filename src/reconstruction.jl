@@ -10,8 +10,30 @@ function reconstruct(p0::PlanarHS{2}, α_central::T, c_central::Ngon, αs::Abstr
     return PlanarHS(θ, ref_vol, c_central; workspace=workspace, shift_workspace=shift_workspace)
 end
 
+function reconstruct!(out::StaticNgon, p0::PlanarHS{2}, α_central::T, c_central::StaticNgon{N, P}, αs::AbstractVector{T}, cs::AbstractVector{<:StaticNgon},
+    cmeasures::AbstractVector{Q}=smeasure.(cs); verbose::Bool=false, xatol::Real=√(eps(T)), workspace::StaticNgon=StaticNgon(P), shift_workspace::MVector=MVector{32, Float64}(undef)) where {T <: Real, Q <: Quantity, N, P<:Point}
+    ref_vol = smeasure(c_central) * α_central
+
+    wrapped_costfun(θ::Real) = lvira_costfun(PlanarHS(θ, ref_vol, c_central; workspace=workspace, shift_workspace=shift_workspace), cs, αs, cmeasures, c_central, workspace=workspace)
+
+    θ0 = GeometricVOF.normal_to_angle(p0.𝛈)
+    θ = brent_min(wrapped_costfun, θ0; xatol=xatol, maxiters=25, step_max=.5, verbose=verbose)
+
+    p = PlanarHS(θ, ref_vol, c_central; workspace=workspace, shift_workspace=shift_workspace)
+    intersect!(out, c_central, p)
+    return out
+end
+
 function lvira_costfun(p::PlanarHS{2}, cs::SubDomain, αs::AbstractArray{T}, cmeasures::AbstractArray{Q}, c_central::Ngon; workspace::StaticNgon=StaticNgon(c_central)) where {T <: Real, Q <: Quantity}
-    err  = 0.0   # initialise as Float64 to avoid Int→Float type change mid-loop
+    _lvira_costfun(p, cs, αs, cmeasures, c_central; workspace=workspace)
+end
+
+function lvira_costfun(p::PlanarHS{2}, cs::AbstractVector{<:StaticNgon}, αs::AbstractVector{T}, cmeasures::AbstractVector{Q}, c_central::StaticNgon; workspace::StaticNgon=StaticNgon(eltype(c_central.vertices))) where {T <: Real, Q <: Quantity}
+    _lvira_costfun(p, cs, αs, cmeasures, c_central; workspace=workspace)
+end
+
+function _lvira_costfun(p::PlanarHS{2}, cs, αs, cmeasures, c_central; workspace)
+    err  = 0.0
     derr = 0.0
 
     intersect!(workspace, c_central, p)
@@ -22,7 +44,7 @@ function lvira_costfun(p::PlanarHS{2}, cs::SubDomain, αs::AbstractArray{T}, cme
     tangent = SVector(-p.𝛈[2], p.𝛈[1])
 
     dshift = tangent[1] * (ci1.coords.x + ci2.coords.x) / 2 +
-             tangent[2] * (ci1.coords.y + ci2.coords.y) / 2  # ≡ tangent ⋅ centroid(c_iface)
+             tangent[2] * (ci1.coords.y + ci2.coords.y) / 2  # tangent ⋅ centroid(c_iface)
     for (c, α, cmeas) ∈ zip(cs, αs, cmeasures)
         intersect!(workspace, c, p)
         if workspace.nr_verts < 3
@@ -34,7 +56,6 @@ function lvira_costfun(p::PlanarHS{2}, cs::SubDomain, αs::AbstractArray{T}, cme
 
         # If workspace.interface_index == 0 then there is no interface inside this cell
         if workspace.interface_index > 0
-            # Inline segment measure and centroid — avoids Segment + centroid + to() allocations
             iv1 = workspace.vertices[workspace.interface_index]
             iv2 = workspace.vertices[mod1(workspace.interface_index + 1, workspace.nr_verts)]
             idx = iv2.coords.x - iv1.coords.x

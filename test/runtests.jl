@@ -271,6 +271,48 @@ using Test
         @test all(rates .> 1.9)
     end
 
+    @testset "reconstruct!" begin
+        # Test that reconstruct! on StaticNgon matches reconstruct on Ngon for a linear interface
+        mesh = CartesianGrid((3, 3), (-.5, -.5), (1/3, 1/3))
+
+        M = 10
+        for θ ∈ 2π*(0:M-1)/M
+            𝛈 = GeometricVOF.SVector{2}(cos(θ), sin(θ))
+            shift_min, shift_max = GeometricVOF.shift_extrema(mesh[5], 𝛈)
+            for shift_ref ∈ range(.9shift_min, .9shift_max, length=M)
+                p_ref = PlanarHS(𝛈, shift_ref)
+
+                αs = [smeasure(p_ref, c) / smeasure(c) for c ∈ mesh]
+                p0 = PlanarHS(GeometricVOF.angle_to_normal(θ + 0.7), 0u"m")
+
+                # Reference: reconstruct with Ngon
+                p_recon = reconstruct(p0, αs[5], mesh[5], αs, view(mesh, 1:9), xatol=1E-12)
+                ref_liquid = intersect(mesh[5], p_recon)
+
+                # Build StaticNgon central + neighbours
+                c_central = StaticNgon(mesh[5])
+                GeometricVOF.copy!(c_central, mesh[5])
+                cs_static = [let s = StaticNgon(mesh[i]); GeometricVOF.copy!(s, mesh[i]); s end for i ∈ 1:9]
+                cmeasures = [smeasure(mesh[i]) for i ∈ 1:9]
+
+                out = StaticNgon(mesh[5])
+                result = reconstruct!(out, p0, αs[5], c_central, αs, cs_static, cmeasures, xatol=1E-12)
+
+                # reconstruct! should return out and not modify c_central
+                @test result === out
+
+                # c_central should be unchanged
+                for vdx ∈ 1:c_central.nr_verts
+                    @test c_central.vertices[vdx] == mesh[5].vertices[vdx]
+                end
+
+                if !isnothing(ref_liquid)
+                    @test isapprox(smeasure(out), smeasure(ref_liquid), atol=1e-10u"m^2")
+                end
+            end
+        end
+    end
+
     @testset "donating_region" begin
         U = u"m/s"
         L = u"m"
