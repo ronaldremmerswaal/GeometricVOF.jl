@@ -1,4 +1,6 @@
 
+const DEFAULT_GL_DATA = gausslegendre(16)
+
 """
     M = smeasure(Φ::Function, c::Ngon)
 
@@ -13,7 +15,11 @@ the diameter H of the Ngon):
 where κ is a bound on the curvature of the interface and h = H / nref. Here, we assume
 κ < 1 / h.
 """
-function smeasure(Φ::F, c::Ngon; nref::Int=8, workspaces=(StaticNgon(c, nref*8), StaticNgon(c, nref*8)), gl_data=gausslegendre(16)) where {F}
+function smeasure(Φ::F, c::Ngon;
+    nref::Int=8,
+    workspaces=(StaticNgon(c, nref * 8), StaticNgon(c, nref * 8)),
+    gl_data=DEFAULT_GL_DATA,
+) where {F}
     Φp(p::Point) = Φ(p.coords.x, p.coords.y)
     T = typeof(Φp(c.vertices[1]))
 
@@ -38,7 +44,7 @@ function smeasure(Φ::F, c::Ngon; nref::Int=8, workspaces=(StaticNgon(c, nref*8)
     if all(inside_verts)
         return smeasure(ref_c)
     elseif all(.!inside_verts)
-        return 0u"m^2"
+        return zero(smeasure(ref_c))
     end
 
     workspace, edge_is_hf = ngon_approx!(workspace, Φrf, ref_c, inside_verts, Method)
@@ -97,8 +103,8 @@ function hf_measure(Φ::F, v1::Point, v2::Point, Method, gl_data) where {F}
 
     𝛕 = v1 - v2
     h = norm(𝛕)
-    if h < 10eps()u"m"
-        return 0u"m^2"
+    if h < 10 * eps(typeof(ustrip(h))) * oneunit(h)
+        return zero(h * h)
     end
     𝛈 = Vec(𝛕[2], -𝛕[1]) # Outward pointing normal (in hf direction)
 

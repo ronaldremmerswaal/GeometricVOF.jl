@@ -1,5 +1,20 @@
-function reconstruct(p0::PlanarHS{2}, α_central::T, c_central::Ngon, αs::AbstractArray{T}, cs::SubDomain,
-    cmeasures::AbstractArray{Q}=smeasure.(cs); verbose::Bool=false, xatol::Real=√(eps(T)), workspace::StaticNgon=StaticNgon(c_central), shift_workspace::MVector=MVector{32, Float64}(undef)) where {T <: Real, Q <: Quantity}
+"""
+    reconstruct(initial, fraction, cell, neighbor_fractions, neighbor_cells;
+                cell_areas=smeasure.(neighbor_cells), workspace, shift_workspace)
+
+Reconstruct a planar interface in `cell` with LVIRA. `fraction` must be
+strictly between zero and one. The allocating method is intended for ordinary
+use; reuse the optional workspaces, or use `reconstruct!`, in a cell loop.
+"""
+function reconstruct(p0::PlanarHS{2}, α_central::T, c_central::Ngon,
+    αs::AbstractArray{T}, cs::Union{SubDomain, AbstractArray{<:Ngon}},
+    cmeasures::AbstractArray{Q}=smeasure.(cs);
+    verbose::Bool=false,
+    xatol::Real=√eps(T),
+    workspace::StaticNgon=StaticNgon(c_central),
+    shift_workspace::AbstractVector{<:Real}=Vector{Float64}(undef, length(c_central.vertices)),
+) where {T<:Real, Q<:Quantity}
+    _validate_reconstruction_inputs(α_central, αs, cs, cmeasures)
     ref_vol = smeasure(c_central) * α_central
 
     wrapped_costfun(θ::Real) = lvira_costfun(PlanarHS(θ, ref_vol, c_central; workspace=workspace, shift_workspace=shift_workspace), cs, αs, cmeasures, c_central, workspace=workspace)
@@ -10,8 +25,23 @@ function reconstruct(p0::PlanarHS{2}, α_central::T, c_central::Ngon, αs::Abstr
     return PlanarHS(θ, ref_vol, c_central; workspace=workspace, shift_workspace=shift_workspace)
 end
 
-function reconstruct!(out::StaticNgon, p0::PlanarHS{2}, α_central::T, c_central::StaticNgon{N, P}, αs::AbstractVector{T}, cs::AbstractVector{<:StaticNgon},
-    cmeasures::AbstractVector{Q}=smeasure.(cs); verbose::Bool=false, xatol::Real=√(eps(T)), workspace::StaticNgon=StaticNgon(P), shift_workspace::MVector=MVector{32, Float64}(undef)) where {T <: Real, Q <: Quantity, N, P<:Point}
+"""
+    reconstruct!(out, initial, fraction, cell, neighbor_fractions, neighbor_cells;
+                 cell_areas=smeasure.(neighbor_cells), workspace, shift_workspace)
+
+Allocation-free LVIRA reconstruction. `out`, `cell`, `neighbor_cells`, and the
+workspace must be fixed-capacity `StaticNgon`s with enough room for clipped
+intermediate polygons. Returns `out`.
+"""
+function reconstruct!(out::StaticNgon, p0::PlanarHS{2}, α_central::T,
+    c_central::StaticNgon{N, P}, αs::AbstractVector{T}, cs::AbstractVector{<:StaticNgon},
+    cmeasures::AbstractVector{Q}=smeasure.(cs);
+    verbose::Bool=false,
+    xatol::Real=√eps(T),
+    workspace::StaticNgon=StaticNgon(P, N + 2),
+    shift_workspace::AbstractVector{<:Real}=MVector{N + 2, Float64}(undef),
+) where {T<:Real, Q<:Quantity, N, P<:Point}
+    _validate_reconstruction_inputs(α_central, αs, cs, cmeasures)
     ref_vol = smeasure(c_central) * α_central
 
     wrapped_costfun(θ::Real) = lvira_costfun(PlanarHS(θ, ref_vol, c_central; workspace=workspace, shift_workspace=shift_workspace), cs, αs, cmeasures, c_central, workspace=workspace)
@@ -24,11 +54,25 @@ function reconstruct!(out::StaticNgon, p0::PlanarHS{2}, α_central::T, c_central
     return out
 end
 
-function lvira_costfun(p::PlanarHS{2}, cs::SubDomain, αs::AbstractArray{T}, cmeasures::AbstractArray{Q}, c_central::Ngon; workspace::StaticNgon=StaticNgon(c_central)) where {T <: Real, Q <: Quantity}
+function _validate_reconstruction_inputs(α_central, αs, cs, cmeasures)
+    zero(α_central) < α_central < one(α_central) || throw(DomainError(α_central,
+        "LVIRA reconstruction requires a volume fraction strictly between zero and one"))
+    length(αs) == length(cs) == length(cmeasures) || throw(DimensionMismatch(
+        "neighbor fractions, cells, and cell areas must have the same length"))
+    return nothing
+end
+
+function lvira_costfun(p::PlanarHS{2}, cs::Union{SubDomain, AbstractArray{<:Ngon}}, αs::AbstractArray{T},
+    cmeasures::AbstractArray{Q}, c_central::Ngon;
+    workspace::StaticNgon=StaticNgon(c_central),
+) where {T<:Real, Q<:Quantity}
     _lvira_costfun(p, cs, αs, cmeasures, c_central; workspace=workspace)
 end
 
-function lvira_costfun(p::PlanarHS{2}, cs::AbstractVector{<:StaticNgon}, αs::AbstractVector{T}, cmeasures::AbstractVector{Q}, c_central::StaticNgon; workspace::StaticNgon=StaticNgon(eltype(c_central.vertices))) where {T <: Real, Q <: Quantity}
+function lvira_costfun(p::PlanarHS{2}, cs::AbstractVector{<:StaticNgon},
+    αs::AbstractVector{T}, cmeasures::AbstractVector{Q}, c_central::StaticNgon;
+    workspace::StaticNgon=StaticNgon(eltype(c_central.vertices), capacity(c_central) + 2),
+) where {T<:Real, Q<:Quantity}
     _lvira_costfun(p, cs, αs, cmeasures, c_central; workspace=workspace)
 end
 

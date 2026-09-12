@@ -1,4 +1,53 @@
 # GeometricVOF
+
 [![Build Status](https://github.com/ronaldremmerswaal/GeometricVOF.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/ronaldremmerswaal/GeometricVOF.jl/actions/workflows/CI.yml?query=branch%3Amain)
 
-Provides an implementation of the geometric volume of fluid method on arbitrary meshes (provided by [Meshes.jl](https://github.com/JuliaGeometry/Meshes.jl)).
+Fast, two-dimensional geometric volume-of-fluid primitives for polygonal cells
+from [Meshes.jl](https://github.com/JuliaGeometry/Meshes.jl). Coordinates and
+areas retain Meshes.jl's Unitful units.
+
+```julia
+using GeometricVOF, Meshes, StaticArrays, Unitful
+
+cell = Quadrangle((0, 0), (1, 0), (1, 1), (0, 1))
+interface = PlanarHS(SVector(1.0, 0.0), 0.4u"m")
+
+liquid_area = smeasure(interface, cell)  # 0.4 m²
+liquid = intersect(cell, interface)      # clipped polygon, or `nothing`
+
+# Construct the plane that contains a prescribed area in a cell.
+offset = shift(cell, SVector(1.0, 0.0), 0.4u"m^2")
+```
+
+## Stable 2D API
+
+`PlanarHS(normal, shift)` represents `normal ⋅ x ≤ shift`; `normal(p)` and
+`distance(p, point)` expose its geometry. `smeasure` computes signed areas for
+polygons, clipped half-spaces, and level sets. `shift` inverts clipped area to
+a plane shift. `reconstruct` performs LVIRA reconstruction from a central
+volume fraction and neighbouring cells.
+
+The ordinary operations allocate only for values they return. In cell loops,
+use `StaticNgon`, `intersect!`, and `reconstruct!` with reusable workspaces:
+
+```julia
+out = StaticNgon(cell)       # default capacity is safe for normal clipping
+scratch = StaticNgon(cell)
+intersect!(out, cell, interface)
+area = smeasure(out)
+```
+
+`capacity(polygon)` reports a static workspace's vertex limit. Supply a larger
+capacity when a workflow can create more intermediate vertices; operations
+throw an `ArgumentError` rather than writing past it.
+
+## Performance checks
+
+The reproducible suite covers clipping, half-space and level-set area,
+area-to-shift inversion, and both reconstruction APIs:
+
+```sh
+julia --project=. benchmark/benchmarks.jl
+```
+
+See [benchmark/README.md](benchmark/README.md) for comparison guidance.

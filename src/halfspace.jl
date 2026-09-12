@@ -1,378 +1,343 @@
-# const PlanarHS = Tuple{Vector{T}, Quantity} where {T<:Real}
+"""
+    StaticNgon(point_type[, capacity=32])
+    StaticNgon(polygon[, capacity])
 
+Fixed-capacity mutable polygon used by the allocation-free `intersect!`,
+`shift`, and `reconstruct!` paths. `capacity` is the number of vertices that
+may be written; choose it large enough for every intermediate polygon.
+"""
 mutable struct StaticNgon{N, P}
     const vertices::MVector{N, P}
-    nr_verts::Int64
-    interface_index::Int64
+    nr_verts::Int
+    interface_index::Int
 end
-StaticNgon(P, N::Int=32) = StaticNgon{N, P}(MVector{N, P}(undef), 0, 0)
-StaticNgon(p::Ngon, N::Int=32) = StaticNgon(eltype(p.vertices), N)
+
+StaticNgon(P, N::Integer=32) = StaticNgon{N, P}(MVector{N, P}(undef), 0, 0)
+StaticNgon(p::Ngon, N::Integer=max(8, 2length(p.vertices) + 2)) =
+    StaticNgon(eltype(p.vertices), N)
+
+"""Maximum number of vertices that a `StaticNgon` can store."""
+capacity(poly::StaticNgon) = length(poly.vertices)
 
 abstract type HalfSpace{D} end
 
-"""
-    PlanarHS(𝛈, shift)
+import Meshes: Ngon
 
-Represents the half-space defined by
-
-    𝛈 ⋅ 𝐱 ≤ shift
 """
-struct PlanarHS{D, V, Q} <: HalfSpace{D}
-    𝛈::V
+    PlanarHS(normal, shift)
+    PlanarHS(angle, area, polygon; workspace, shift_workspace)
+
+A two-dimensional half-space satisfying `normal ⋅ x ≤ shift`. Normals are
+stored as immutable `SVector`s, including when constructed from ordinary
+vectors. The three-argument form computes the shift that encloses `area` of
+`polygon`; `normal` is generated from `angle` and is therefore unit length.
+"""
+struct PlanarHS{D, T<:Real, Q<:Quantity} <: HalfSpace{D}
+    𝛈::SVector{D, T}
     shift::Q
 end
-# PlanarHS(𝛈::Vector, shift::Number) = PlanarHS{length(𝛈)}(SVector{length(𝛈)}(𝛈), shift * u"m")
-PlanarHS(𝛈::V, shift::Q) where {V <: AbstractVector, Q <: Quantity} = PlanarHS{length(𝛈), V, Q}(SVector{length(𝛈)}(𝛈), shift)
-PlanarHS{D}(𝛈::V, shift::Q) where {D, V <: AbstractVector, Q <: Quantity} = PlanarHS{D, V, Q}(SVector{D}(𝛈), shift)
+
+function PlanarHS(𝛈::AbstractVector{T}, shift::Q) where {T<:Real, Q<:Quantity}
+    D = length(𝛈)
+    return PlanarHS{D, T, Q}(SVector{D, T}(𝛈), shift)
+end
+
+function PlanarHS{D}(𝛈::AbstractVector{T}, shift::Q) where {D, T<:Real, Q<:Quantity}
+    return PlanarHS{D, T, Q}(SVector{D, T}(𝛈), shift)
+end
+
+"""Return the outward normal of a planar half-space."""
+normal(p::PlanarHS) = p.𝛈
 
 complement(p::PlanarHS) = PlanarHS(-p.𝛈, -p.shift)
 
-distance(p::PlanarHS, 𝐱::Point) = p.𝛈[1] * 𝐱.coords.x + p.𝛈[2] * 𝐱.coords.y - p.shift
+@inline distance(p::PlanarHS{2}, x::Point) =
+    p.𝛈[1] * x.coords.x + p.𝛈[2] * x.coords.y - p.shift
 
-function PlanarHS(θ::T, αvol::Quantity, c::Ngon; workspace::StaticNgon=StaticNgon(c), shift_workspace::MVector=MVector{32, Float64}(undef)) where {T <: Real}
-    𝛈 = GeometricVOF.angle_to_normal(θ)
-    s = shift(c, 𝛈, αvol; workspace=workspace, shift_workspace=shift_workspace)
-    return PlanarHS{2}(𝛈, s)
+function PlanarHS(θ::T, αvol::Quantity, c::Ngon;
+    workspace::StaticNgon=StaticNgon(c),
+    shift_workspace::AbstractVector{<:Real}=Vector{Float64}(undef, length(c.vertices)),
+) where {T<:Real}
+    𝛈 = angle_to_normal(θ)
+    return PlanarHS{2}(𝛈, shift(c, 𝛈, αvol;
+        workspace=workspace, shift_workspace=shift_workspace))
+end
+
+function PlanarHS(θ::T, αvol::Quantity, c::StaticNgon{N, P};
+    workspace::StaticNgon=StaticNgon(P, N + 2),
+    shift_workspace::AbstractVector{<:Real}=MVector{N + 2, Float64}(undef),
+) where {T<:Real, N, P<:Point}
+    𝛈 = angle_to_normal(θ)
+    return PlanarHS{2}(𝛈, shift(c, 𝛈, αvol;
+        workspace=workspace, shift_workspace=shift_workspace))
 end
 
 function PlanarHS(v1::Point, v2::Point)
-    𝛈 = GeometricVOF.angle_to_normal(atan(v1.coords.x - v2.coords.x, v2.coords.y - v1.coords.y))
+    𝛈 = angle_to_normal(atan(v1.coords.x - v2.coords.x, v2.coords.y - v1.coords.y))
     return PlanarHS{2}(𝛈, 𝛈 ⋅ to(v1))
 end
 
 import Base: intersect
+
 """
-    intersect(c, p)
+    intersect(polygon, halfspace)
 
-Intersects the polygon `c` with halfspace defined by `p`.
-
-# Examples
-```julia-repl
-julia> c = Triangle((0., 0.), (1., 0.), (0., 1.))
-julia> p = PlanarHS([-1., 0.], -0.5)
-julia> intersect(c, p)
-Triangle
-├─ Point(x: 0.5 m, y: 0.5 m)
-├─ Point(x: 0.5 m, y: 0.0 m)
-└─ Point(x: 1.0 m, y: 0.0 m)
-```
+Return the part of a 2D polygon inside `halfspace`, or `nothing` when it is
+empty. Use `intersect!` with a `StaticNgon` when this is a hot path.
 """
-
 Base.intersect(c::Ngon, p::PlanarHS{2}; kwargs...) =
-    Ngon(Base.intersect!(StaticNgon(eltype(c.vertices)), c, p; kwargs...))
+    Ngon(Base.intersect!(StaticNgon(c), c, p; kwargs...))
 
 Ngon(poly::StaticNgon) = poly.nr_verts < 3 ? nothing : Ngon(poly.vertices[1:poly.nr_verts]...)
-function smeasure(p::PlanarHS, c::Ngon)
-    cp = intersect(c, p)
-    if isnothing(cp)
-        return 0u"m^2"
-    else
-        return smeasure(cp)
-    end
+
+function _require_capacity(out::StaticNgon, required::Integer)
+    capacity(out) ≥ required || throw(ArgumentError(
+        "StaticNgon capacity $(capacity(out)) is too small; clipping needs at least $required vertices"))
+    return nothing
 end
 
-function Base.intersect!(out::StaticNgon{N, P}, c::Ngon, p::PlanarHS{2}; tol::Real=√eps(typeof(c.vertices[1].coords.x.val))) where {N, P<:Point}
+function Base.intersect!(out::StaticNgon{N, P}, c::Ngon, p::PlanarHS{2};
+    tol::Real=√eps(typeof(c.vertices[1].coords.x.val)),
+) where {N, P<:Point}
     intersect!(out, c.vertices, p; tol=tol)
 end
 
-function Base.intersect!(out::StaticNgon{N, P}, in::StaticNgon{N, P}, p::PlanarHS{2}; tol::Real=√eps()) where {N, P<:Point}
-    intersect!(out, view(in.vertices, 1:in.nr_verts), p; tol=tol)
+function Base.intersect!(out::StaticNgon{N, P}, input::StaticNgon{M, P}, p::PlanarHS{2};
+    tol::Real=√eps(),
+) where {N, M, P<:Point}
+    intersect!(out, view(input.vertices, 1:input.nr_verts), p; tol=tol)
 end
 
-function Base.intersect!(out::StaticNgon{N, P}, verts::AbstractVector{P}, p::PlanarHS{2}; tol::Real=√eps()) where {N, P<:Point}
-
+function Base.intersect!(out::StaticNgon{N, P}, verts::AbstractVector{P}, p::PlanarHS{2};
+    tol::Real=√eps(),
+) where {N, P<:Point}
     nr_old_verts = length(verts)
+    nr_old_verts == 0 && return (out.nr_verts = 0; out.interface_index = 0; out)
+    _require_capacity(out, nr_old_verts + 1)
 
-    # Construct new polygon by looping over the edges of the old polygon
     out.nr_verts = 0
-    next_dist = 0u"m"
-    next_inside = false
     out.interface_index = 0
     any_bisected = false
-    for (cdx, curr_vert) ∈ enumerate(verts)
-        ndx = mod1(cdx + 1, nr_old_verts)
 
-        if cdx == 1
+    next_dist = zero(distance(p, verts[1]))
+    next_inside = false
+    for (index, curr_vert) in enumerate(verts)
+        next_index = mod1(index + 1, nr_old_verts)
+        if index == 1
             curr_dist = distance(p, curr_vert)
-            curr_inside = curr_dist ≤ 0u"m"
+            curr_inside = curr_dist ≤ zero(curr_dist)
         else
             curr_dist = next_dist
             curr_inside = next_inside
         end
-        next_vert = verts[ndx]
+        next_vert = verts[next_index]
         next_dist = distance(p, next_vert)
-        next_inside = next_dist ≤ 0u"m"
+        next_inside = next_dist ≤ zero(next_dist)
 
         if curr_inside
             out.nr_verts += 1
             out.vertices[out.nr_verts] = curr_vert
         end
 
-        edge_is_bisected = curr_inside != next_inside
-        any_bisected = any_bisected || edge_is_bisected
-
-        if edge_is_bisected
+        if curr_inside != next_inside
+            any_bisected = true
             coeff = abs(curr_dist / (next_dist - curr_dist))
-            if (curr_inside && coeff > tol) ||
-               (next_inside && coeff < 1 - tol)
+            if (curr_inside && coeff > tol) || (next_inside && coeff < 1 - tol)
                 out.nr_verts += 1
                 out.vertices[out.nr_verts] = curr_vert + coeff * (next_vert - curr_vert)
             end
             if out.interface_index == 0
-                if curr_inside
-                    out.interface_index = out.nr_verts
-                else
-                    out.interface_index = out.nr_verts - 1
-                end
+                out.interface_index = curr_inside ? out.nr_verts : out.nr_verts - 1
             end
         end
     end
 
-    if any_bisected
+    if any_bisected && out.nr_verts > 0
         out.interface_index = mod1(out.interface_index, out.nr_verts)
     end
-
     return out
 end
 
 function copy!(to::StaticNgon{N1, P}, from::StaticNgon{N2, P}) where {N1, N2, P<:Point}
+    _require_capacity(to, from.nr_verts)
     to.nr_verts = from.nr_verts
     to.interface_index = from.interface_index
-    for i ∈ 1:from.nr_verts
+    for i in 1:from.nr_verts
         to.vertices[i] = from.vertices[i]
     end
     return to
 end
 
 function copy!(to::StaticNgon{N, P}, from::Ngon) where {N, P<:Point}
+    _require_capacity(to, length(from.vertices))
     to.nr_verts = length(from.vertices)
     to.interface_index = 0
-    for i ∈ 1:to.nr_verts
+    for i in eachindex(from.vertices)
         to.vertices[i] = from.vertices[i]
     end
     return to
 end
 
 function Base.intersect!(out::StaticNgon{N, P}, c1::Ngon, c2::Ngon;
-    tol::Real=√eps(typeof(c1.vertices[1].coords.x.val)), workspace::StaticNgon=StaticNgon(c1))  where {N, P<:Point}
-
+    tol::Real=√eps(typeof(c1.vertices[1].coords.x.val)),
+    workspace::StaticNgon=StaticNgon(c1),
+) where {N, P<:Point}
     static_c1 = StaticNgon(c1)
     copy!(static_c1, c1)
-
-    intersect!(out, static_c1, c2; tol=tol, workspace=workspace)
+    return intersect!(out, static_c1, c2; tol=tol, workspace=workspace)
 end
 
 function Base.intersect!(out::StaticNgon{N1, P}, c1::StaticNgon{N2, P}, c2::Ngon;
-    tol::Real=√eps(typeof(c1.vertices[1].coords.x.val)), workspace::StaticNgon=StaticNgon(c1))  where {N1, N2, P<:Point}
-
+    tol::Real=√eps(typeof(c1.vertices[1].coords.x.val)),
+    workspace::StaticNgon=StaticNgon(c2),
+) where {N1, N2, P<:Point}
     copy!(workspace, c1)
-
-    for (cdx, curr_vert) ∈ enumerate(c2.vertices)
-        next_vert = c2.vertices[mod1(cdx + 1, length(c2.vertices))]
-        hs = PlanarHS(curr_vert, next_vert)
-
-        intersect!(out, workspace, hs; tol=tol)
-
-        if cdx < length(c2.vertices)
-            copy!(workspace, out)
-        end
+    for (index, curr_vert) in enumerate(c2.vertices)
+        next_vert = c2.vertices[mod1(index + 1, length(c2.vertices))]
+        intersect!(out, workspace, PlanarHS(curr_vert, next_vert); tol=tol)
+        index < length(c2.vertices) && copy!(workspace, out)
     end
-
     return out
 end
 
+"""Signed area of a fixed-capacity polygon."""
 function smeasure(poly::StaticNgon{N, P}) where {N, P<:Point}
-    M = 0u"m^2"
-    if poly.nr_verts < 3
-        return M
+    poly.nr_verts == 0 && return 0u"m^2"
+    poly.nr_verts < 3 && return zero(poly.vertices[1].coords.x * poly.vertices[1].coords.y)
+    area = zero(poly.vertices[1].coords.x * poly.vertices[1].coords.y)
+    previous = poly.vertices[poly.nr_verts]
+    for current in view(poly.vertices, 1:poly.nr_verts)
+        area += previous.coords.x * current.coords.y - previous.coords.y * current.coords.x
+        previous = current
     end
-
-    for vdx = 1:poly.nr_verts
-        v1 = poly.vertices[vdx]
-        v2 = poly.vertices[mod1(vdx + 1, poly.nr_verts)]
-        M += v1.coords.x * v2.coords.y - v1.coords.y * v2.coords.x
-    end
-    M /= 2
+    return area / 2
 end
-
 
 """
-    shift(c, 𝛈, α)
+    smeasure(halfspace, polygon; workspace)
 
-Shift such that shifted plane with normal `𝛈` yields intersection volume given by
-`α`. It is the inverse of the `measure(c, Plane(𝛈, shift))` function.
-
-# Examples
-```julia-repl
-julia> c = Triangle((0., 0.), (1., 0.), (0., 1.))
-julia> shift(c, [1.0, 0.0], 0.21875u"m^2")
-0.25u"m"
-```
+Area of the portion of `polygon` inside `halfspace`. Supply a reusable
+`StaticNgon` workspace to avoid allocations in a loop.
 """
-shift(c::Ngon, 𝛈::Vector, α::Quantity) = shift(c, SVector{2}(𝛈), α)
-function shift(c::Ngon, 𝛈::SVector{2}, αvol::Quantity; workspace::StaticNgon=StaticNgon(c), shift_workspace::MVector=MVector{32, Float64}(undef))
+function smeasure(p::PlanarHS{2}, c::Ngon; workspace::StaticNgon=StaticNgon(c))
+    intersect!(workspace, c, p)
+    return workspace.nr_verts < 3 ?
+        zero(c.vertices[1].coords.x * c.vertices[1].coords.y) : smeasure(workspace)
+end
 
-    α_err(p) = smeasure(intersect!(workspace, c, p)) - αvol
+function smeasure(p::PlanarHS{2}, c::StaticNgon;
+    workspace::StaticNgon=StaticNgon(eltype(c.vertices), capacity(c) + 2),
+)
+    intersect!(workspace, c, p)
+    return workspace.nr_verts < 3 ? smeasure(c) * 0 : smeasure(workspace)
+end
 
-    # Determine shift at each vertex
-    n_verts = length(c.vertices)
-    for (vdx, v) ∈ enumerate(c.vertices)
-        shift_workspace[vdx] = ustrip(𝛈[1] * v.coords.x + 𝛈[2] * v.coords.y)
-    end
+"""
+    shift(polygon, normal, area; workspace, shift_workspace)
 
-    # Evaluate the error function at the shift_workspace
-    sort!(view(shift_workspace, 1:n_verts))
-    α_err_prev = -αvol
+Find the half-space shift whose clipped signed area is `area`. `area` must lie
+between zero and the polygon's signed area. The default is safe for polygons
+of any size; pass reusable workspaces in repeated calls.
+"""
+function shift(c::Ngon, 𝛈::AbstractVector, αvol::Quantity;
+    workspace::StaticNgon=StaticNgon(c),
+    shift_workspace::AbstractVector{<:Real}=Vector{Float64}(undef, length(c.vertices)),
+)
+    return _shift(c, SVector{2}(𝛈), αvol, workspace, shift_workspace)
+end
+
+function shift(c::StaticNgon{N, P}, 𝛈::AbstractVector, αvol::Quantity;
+    workspace::StaticNgon=StaticNgon(P, N + 2),
+    shift_workspace::AbstractVector{<:Real}=MVector{N + 2, Float64}(undef),
+) where {N, P<:Point}
+    return _shift(c, SVector{2}(𝛈), αvol, workspace, shift_workspace)
+end
+
+function _shift(c, 𝛈::SVector{2}, αvol::Quantity, workspace::StaticNgon,
+    shift_workspace::AbstractVector{<:Real})
+    nverts = c isa Ngon ? length(c.vertices) : c.nr_verts
+    nverts > 0 || throw(ArgumentError("cannot find a shift for an empty polygon"))
+    length(shift_workspace) ≥ nverts || throw(ArgumentError(
+        "shift_workspace has length $(length(shift_workspace)); at least $nverts values are required"))
+    _require_capacity(workspace, nverts + 1)
 
     c_measure = smeasure(c)
+    zero_area = zero(c_measure)
+    zero_area ≤ αvol ≤ c_measure || throw(DomainError(αvol,
+        "area must lie between zero and the polygon's signed area"))
 
-    if αvol == 0u"m^2"
-        return shift_workspace[1]u"1m"
-    elseif αvol == c_measure
-        return shift_workspace[n_verts]u"1m"
+    verts = c isa Ngon ? c.vertices : view(c.vertices, 1:c.nr_verts)
+    shift_unit = oneunit(𝛈[1] * verts[1].coords.x + 𝛈[2] * verts[1].coords.y)
+    for index in eachindex(verts)
+        vertex = verts[index]
+        shift_workspace[index] = ustrip((𝛈[1] * vertex.coords.x + 𝛈[2] * vertex.coords.y) / shift_unit)
     end
+    sort!(view(shift_workspace, 1:nverts))
 
-    for i ∈ 2:n_verts
-        if i == n_verts
-            α_err_curr = c_measure - αvol
-        else
-            α_err_curr = α_err(PlanarHS{2}(𝛈, shift_workspace[i]u"1m"))
-        end
+    αvol == zero_area && return shift_workspace[1] * shift_unit
+    αvol == c_measure && return shift_workspace[nverts] * shift_unit
 
-        if α_err_curr == 0u"m^2" return shift_workspace[i]u"1m" end
+    αerr(shift_value) = smeasure(intersect!(workspace, c,
+        PlanarHS{2}(𝛈, shift_value * shift_unit))) - αvol
 
-        if sign(α_err_curr) != sign(α_err_prev)
-            # We have found a sign change, so we can use the two shift_workspace to bracket the root
-            shift0 = shift_workspace[i - 1]u"1m"
-            shift2 = shift_workspace[i]u"1m"
+    αerr_previous = -αvol
+    for index in 2:nverts
+        αerr_current = index == nverts ? c_measure - αvol : αerr(shift_workspace[index])
+        αerr_current == zero_area && return shift_workspace[index] * shift_unit
+
+        if sign(αerr_current) != sign(αerr_previous)
+            shift0 = shift_workspace[index - 1]
+            shift2 = shift_workspace[index]
             shift1 = (shift0 + shift2) / 2
+            h = shift2 - shift1
+            h == 0 && continue
 
-            # Moreover, the dependence in the bracket is quadratic, so 3 values are sufficient
-            α_err0 = ustrip(α_err_prev)
-            α_err1 = ustrip(α_err(PlanarHS{2}(𝛈, shift1)))
-            α_err2 = ustrip(α_err_curr)
-
-            h = ustrip(shift2 - shift1)
-            A = (.5α_err2 - α_err1 + .5α_err0) / h^2
-            B = (α_err2 - α_err0) / 2h
-            C = α_err1
-
-            x1, x2, = parabola_roots(A, B, C)
-            x1u = shift1 + x1*u"m"
-            x2u = shift1 + x2*u"m"
-
-            return shift0 ≤ x1u ≤ shift2 ? x1u : x2u
+            αerr0 = ustrip(αerr_previous / (shift_unit * shift_unit))
+            αerr1 = ustrip(αerr(shift1) / (shift_unit * shift_unit))
+            αerr2 = ustrip(αerr_current / (shift_unit * shift_unit))
+            A = (0.5αerr2 - αerr1 + 0.5αerr0) / h^2
+            B = (αerr2 - αerr0) / (2h)
+            C = αerr1
+            x1, x2, _ = parabola_roots(A, B, C)
+            root = shift0 ≤ x1 + shift1 ≤ shift2 ? x1 : x2
+            return (shift1 + root) * shift_unit
         end
-
-        α_err_prev = α_err_curr
+        αerr_previous = αerr_current
     end
 
-    # Unreachable for valid inputs (monotone bracket guaranteed by IVT).
-    # Explicit error keeps the return type as Quantity (not Union{Quantity,Nothing}).
-    error("GeometricVOF.shift: no bracket found — possible numerical degeneracy (αvol=$αvol)")
+    error("GeometricVOF.shift: no bracket found — possible numerical degeneracy (area=$αvol)")
 end
 
-function shift(c::StaticNgon{N, P}, 𝛈::SVector{2}, αvol::Quantity; workspace::StaticNgon=StaticNgon(P), shift_workspace::MVector=MVector{32, Float64}(undef)) where {N, P<:Point}
-
-    α_err(p) = smeasure(intersect!(workspace, c, p)) - αvol
-
-    n_verts = c.nr_verts
-    for vdx ∈ 1:n_verts
-        v = c.vertices[vdx]
-        shift_workspace[vdx] = ustrip(𝛈[1] * v.coords.x + 𝛈[2] * v.coords.y)
-    end
-
-    sort!(view(shift_workspace, 1:n_verts))
-    α_err_prev = -αvol
-
-    c_measure = smeasure(c)
-
-    if αvol == 0u"m^2"
-        return shift_workspace[1]u"1m"
-    elseif αvol == c_measure
-        return shift_workspace[n_verts]u"1m"
-    end
-
-    for i ∈ 2:n_verts
-        if i == n_verts
-            α_err_curr = c_measure - αvol
-        else
-            α_err_curr = α_err(PlanarHS{2}(𝛈, shift_workspace[i]u"1m"))
-        end
-
-        if α_err_curr == 0u"m^2" return shift_workspace[i]u"1m" end
-
-        if sign(α_err_curr) != sign(α_err_prev)
-            shift0 = shift_workspace[i - 1]u"1m"
-            shift2 = shift_workspace[i]u"1m"
-            shift1 = (shift0 + shift2) / 2
-
-            α_err0 = ustrip(α_err_prev)
-            α_err1 = ustrip(α_err(PlanarHS{2}(𝛈, shift1)))
-            α_err2 = ustrip(α_err_curr)
-
-            h = ustrip(shift2 - shift1)
-            A = (.5α_err2 - α_err1 + .5α_err0) / h^2
-            B = (α_err2 - α_err0) / 2h
-            C = α_err1
-
-            x1, x2, = parabola_roots(A, B, C)
-            x1u = shift1 + x1*u"m"
-            x2u = shift1 + x2*u"m"
-
-            return shift0 ≤ x1u ≤ shift2 ? x1u : x2u
-        end
-
-        α_err_prev = α_err_curr
-    end
-
-    error("GeometricVOF.shift: no bracket found — possible numerical degeneracy (αvol=$αvol)")
-end
-
-function PlanarHS(θ::T, αvol::Quantity, c::StaticNgon{N, P}; workspace::StaticNgon=StaticNgon(P), shift_workspace::MVector=MVector{32, Float64}(undef)) where {T <: Real, N, P<:Point}
-    𝛈 = GeometricVOF.angle_to_normal(θ)
-    s = shift(c, 𝛈, αvol; workspace=workspace, shift_workspace=shift_workspace)
-    return PlanarHS{2}(𝛈, s)
-end
-
-function shift_extrema(c::Ngon, 𝛈::SVector{2})
-    shift_min = floatmax()u"m"
-    shift_max = floatmin()u"m"
-    for v ∈ c.vertices
-        shift_val = 𝛈[1] * v.coords.x + 𝛈[2] * v.coords.y
-        if shift_val < shift_min
-            shift_min = shift_val
-        end
-        if shift_val > shift_max
-            shift_max = shift_val
-        end
+function shift_extrema(c::Ngon, 𝛈::AbstractVector)
+    verts = c.vertices
+    first_shift = 𝛈[1] * verts[1].coords.x + 𝛈[2] * verts[1].coords.y
+    shift_min = first_shift
+    shift_max = first_shift
+    for vertex in @view verts[2:end]
+        value = 𝛈[1] * vertex.coords.x + 𝛈[2] * vertex.coords.y
+        value < shift_min && (shift_min = value)
+        value > shift_max && (shift_max = value)
     end
     return shift_min, shift_max
 end
 
 """
-    sorted_unique_approx(c::Ngon; tol::Real)
+    sorted_unique_approx(polygon; tol)
 
-Remove subsequent vertices that are approximately equal to each other.
+Remove adjacent approximately-equal vertices, returning `nothing` if fewer
+than three remain.
 """
 function sorted_unique_approx(c::Ngon; tol::Real=√eps(typeof(c.vertices[1].coords.x.val)))
     vs = vertices(c)
-    rm_indices = Vector{Int}()
-
-    for (vdx, v1) ∈ enumerate(vs)
-        v2 = vs[vdx == length(vs) ? 1 : vdx + 1]
-
-        if ustrip(abs(v1.coords.x - v2.coords.x)) < tol && ustrip(abs(v1.coords.y - v2.coords.y)) < tol
-            push!(rm_indices, vdx)
+    remove = Int[]
+    for (index, v1) in enumerate(vs)
+        v2 = vs[index == length(vs) ? 1 : index + 1]
+        if ustrip(abs(v1.coords.x - v2.coords.x)) < tol &&
+           ustrip(abs(v1.coords.y - v2.coords.y)) < tol
+            push!(remove, index)
         end
     end
-
-    if isempty(rm_indices)
-        return c
-    elseif length(vs) - length(rm_indices) < 3
-        return nothing
-    else
-        return Ngon(vs[setdiff(1:length(vs), rm_indices)]...)
-    end
-
+    isempty(remove) && return c
+    length(vs) - length(remove) < 3 && return nothing
+    return Ngon(vs[setdiff(eachindex(vs), remove)]...)
 end
