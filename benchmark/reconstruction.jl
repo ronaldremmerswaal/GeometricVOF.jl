@@ -4,7 +4,7 @@ using Unitful
 using Meshes
 using StaticArrays
 
-function reconstruction_prep(;N=2^9)
+function lvira_prep(;N=2^9)
     R = 0.25u"m"
     Φ(x, y) = (x - .5u"m")^2 + (y - .5u"m")^2 - R^2 * (1 + .1cos(.1 + 5atan(y - .5u"m", x - .5u"m")))^2
 
@@ -18,7 +18,7 @@ function reconstruction_prep(;N=2^9)
     return mesh, inds, αs
 end
 
-function reconstruction_benchmark(mesh, inds, αs; α_tol=1E-8)
+function lvira_benchmark(mesh, inds, αs; α_tol=1E-8)
     recons = PlanarHS[]
     workspace = StaticNgon(mesh[1])
     shift_workspace = MVector{30, Float64}(undef)
@@ -31,12 +31,12 @@ function reconstruction_benchmark(mesh, inds, αs; α_tol=1E-8)
         θ0 = atan(xc.coords.y, xc.coords.x) + .1
         p0 = PlanarHS(GeometricVOF.angle_to_normal(θ0), 0u"m")
 
-        p_recon = reconstruct(p0, αs[i, j], c, view(αs, i-1:i+1, j-1:j+1), view(mesh, inds[i-1:i+1, j-1:j+1][:]); workspace=workspace, shift_workspace=shift_workspace)
+        p_recon = lvira(p0, αs[i, j], c, view(αs, i-1:i+1, j-1:j+1), view(mesh, inds[i-1:i+1, j-1:j+1][:]); workspace=workspace, shift_workspace=shift_workspace)
         push!(recons, p_recon)
     end
 
     recons
 end
 
-mesh, inds, αs = reconstruction_prep()
-@benchmark reconstruction_benchmark($mesh, $inds, $αs)
+mesh, inds, αs = lvira_prep()
+@benchmark lvira_benchmark($mesh, $inds, $αs)

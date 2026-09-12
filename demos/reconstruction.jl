@@ -26,7 +26,7 @@ for i = 2 : N-1, j = 2 : N-1
     xc = centroid(c)
     θ0 = atan(xc.coords.y, xc.coords.x) + .1
     p0 = PlanarHS{2}(GeometricVOF.angle_to_normal(θ0), 0u"m")
-    p_recon = reconstruct(p0, αs[i, j], c, view(αs, i-1:i+1, j-1:j+1), view(mesh, i-1:i+1, j-1:j+1), p0)
+    p_recon = lvira(p0, αs[i, j], c, view(αs, i-1:i+1, j-1:j+1), view(mesh, i-1:i+1, j-1:j+1))
 
     cp = c ∩ p_recon
     if !isnothing(cp)

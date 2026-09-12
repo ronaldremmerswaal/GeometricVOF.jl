@@ -1,12 +1,11 @@
 """
-    reconstruct(initial, fraction, cell, neighbor_fractions, neighbor_cells;
-                cell_areas=smeasure.(neighbor_cells), workspace, shift_workspace)
+    lvira(initial, fraction, cell, neighbor_fractions, neighbor_cells;
+          cell_areas=smeasure.(neighbor_cells), workspace, shift_workspace)
 
 Reconstruct a planar interface in `cell` with LVIRA. `fraction` must be
-strictly between zero and one. The allocating method is intended for ordinary
-use; reuse the optional workspaces, or use `reconstruct!`, in a cell loop.
+strictly between zero and one. Reuse the optional workspaces in a cell loop.
 """
-function reconstruct(p0::PlanarHS{2}, α_central::T, c_central::Ngon,
+function lvira(p0::PlanarHS{2}, α_central::T, c_central::Ngon,
     αs::AbstractArray{T}, cs::Union{SubDomain, AbstractArray{<:Ngon}},
     cmeasures::AbstractArray{Q}=smeasure.(cs);
     verbose::Bool=false,
@@ -23,35 +22,6 @@ function reconstruct(p0::PlanarHS{2}, α_central::T, c_central::Ngon,
     θ = brent_min(wrapped_costfun, θ0; xatol=xatol, maxiters=25, step_max=.5, verbose=verbose)
 
     return PlanarHS(θ, ref_vol, c_central; workspace=workspace, shift_workspace=shift_workspace)
-end
-
-"""
-    reconstruct!(out, initial, fraction, cell, neighbor_fractions, neighbor_cells;
-                 cell_areas=smeasure.(neighbor_cells), workspace, shift_workspace)
-
-Allocation-free LVIRA reconstruction. `out`, `cell`, `neighbor_cells`, and the
-workspace must be fixed-capacity `StaticNgon`s with enough room for clipped
-intermediate polygons. Returns `out`.
-"""
-function reconstruct!(out::StaticNgon, p0::PlanarHS{2}, α_central::T,
-    c_central::StaticNgon{N, P}, αs::AbstractVector{T}, cs::AbstractVector{<:StaticNgon},
-    cmeasures::AbstractVector{Q}=smeasure.(cs);
-    verbose::Bool=false,
-    xatol::Real=√eps(T),
-    workspace::StaticNgon=StaticNgon(P, N + 2),
-    shift_workspace::AbstractVector{<:Real}=MVector{N + 2, Float64}(undef),
-) where {T<:Real, Q<:Quantity, N, P<:Point}
-    _validate_reconstruction_inputs(α_central, αs, cs, cmeasures)
-    ref_vol = smeasure(c_central) * α_central
-
-    wrapped_costfun(θ::Real) = lvira_costfun(PlanarHS(θ, ref_vol, c_central; workspace=workspace, shift_workspace=shift_workspace), cs, αs, cmeasures, c_central, workspace=workspace)
-
-    θ0 = GeometricVOF.normal_to_angle(p0.𝛈)
-    θ = brent_min(wrapped_costfun, θ0; xatol=xatol, maxiters=25, step_max=.5, verbose=verbose)
-
-    p = PlanarHS(θ, ref_vol, c_central; workspace=workspace, shift_workspace=shift_workspace)
-    intersect!(out, c_central, p)
-    return out
 end
 
 function _validate_reconstruction_inputs(α_central, αs, cs, cmeasures)

@@ -11,7 +11,7 @@ using StaticArrays
 using Printf
 
 export PlanarHS, Parabola, StaticNgon, StaticParabolicNgon, capacity
-export measure, intersect, intersect!, complement, shift, reconstruct, reconstruct!, distance, donating_region,
+export measure, intersect, intersect!, complement, shift, lvira, distance, donating_region,
     smeasure, moments, symmetric_difference, normal, normal!, tangent, tangent!, sorted_unique_approx, donating_region!,
     mof, pmof, plvira, prost
 

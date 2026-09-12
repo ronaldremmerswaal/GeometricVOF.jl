@@ -24,11 +24,16 @@ offset = shift(cell, SVector(1.0, 0.0), 0.4u"m^2")
 `PlanarHS(normal, shift)` represents `normal ⋅ x ≤ shift`; `normal(p)` and
 `distance(p, point)` expose its geometry. `smeasure` computes signed areas for
 polygons, clipped half-spaces, and level sets. `shift` inverts clipped area to
-a plane shift. `reconstruct` performs LVIRA reconstruction from a central
-volume fraction and neighbouring cells.
+a plane shift. `lvira` performs LVIRA reconstruction from a central
+volume fraction and neighbouring cells:
+
+```julia
+plane = lvira(initial_plane, fraction, cell, neighbor_fractions, neighbor_cells)
+```
 
 The ordinary operations allocate only for values they return. In cell loops,
-use `StaticNgon`, `intersect!`, and `reconstruct!` with reusable workspaces:
+use `StaticNgon` and `intersect!` with reusable workspaces. `lvira` likewise
+accepts reusable `workspace` and `shift_workspace` keyword arguments.
 
 ```julia
 out = StaticNgon(cell)       # default capacity is safe for normal clipping
