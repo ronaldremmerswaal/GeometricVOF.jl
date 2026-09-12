@@ -45,12 +45,30 @@ const SHIFT_NORMAL = SVector(cos(0.61), sin(0.61))
 const SHIFT_AREA = 0.37u"m^2"
 const CURVED_LEVELSET = (x, y) -> y - (0.35u"m" + 0.15 * (x / u"m")^2 * u"m")
 const RECONSTRUCTION = reconstruction_fixture()
+const PARABOLA_ORIGIN = Point(0u"m", 0u"m")
+const PARABOLA = Parabola(SVector(0.0, 1.0), 0.4u"m", -0.4u"m^-1", PARABOLA_ORIGIN)
+const PARABOLA_OUTPUT = StaticParabolicNgon(QUAD, PARABOLA)
+const PARABOLA_AREA = smeasure(PARABOLA, QUAD)
+const PARABOLA_MOMENT = moments(PARABOLA, QUAD)[2]
+const MOF_INITIAL = PlanarHS(SVector(cos(1.2), sin(1.2)), 0u"m")
+const MOF_REFERENCE = PlanarHS(SVector(cos(0.73), sin(0.73)), 0.12u"m")
+const MOF_FRACTION = smeasure(MOF_REFERENCE, QUAD) / smeasure(QUAD)
+const MOF_MOMENT = moments(MOF_REFERENCE, QUAD)[2]
+const PMOF_INITIAL = PlanarHS(SVector(1.0, 0.0), 0u"m")
+const PMOF_FRACTION = PARABOLA_AREA / smeasure(QUAD)
+const STENCIL_PARABOLA = Parabola(SVector(0.0, 1.0), 0.1u"m", -0.5u"m^-1", PARABOLA_ORIGIN)
+const STENCIL_FRACTIONS = [smeasure(STENCIL_PARABOLA, cell) / smeasure(cell)
+    for cell in RECONSTRUCTION.cells]
+const STENCIL_WORKSPACE = StaticParabolicNgon(RECONSTRUCTION.central, STENCIL_PARABOLA)
 
 const SUITE = BenchmarkGroup()
 SUITE["clip"]["convenience"] = @benchmarkable intersect($QUAD, $HALFSPACE)
 SUITE["clip"]["workspace"] = @benchmarkable intersect!($CLIP_OUTPUT, $QUAD, $HALFSPACE)
+SUITE["clip"]["parabola_workspace"] = @benchmarkable intersect!($PARABOLA_OUTPUT, $QUAD, $PARABOLA)
 SUITE["area"]["halfspace"] = @benchmarkable smeasure($HALFSPACE, $QUAD)
 SUITE["area"]["levelset"] = @benchmarkable smeasure($CURVED_LEVELSET, $QUAD)
+SUITE["area"]["parabola"] = @benchmarkable smeasure($PARABOLA, $QUAD; workspace=$PARABOLA_OUTPUT)
+SUITE["moments"]["parabola"] = @benchmarkable moments($PARABOLA, $QUAD; workspace=$PARABOLA_OUTPUT)
 SUITE["shift"]["workspace"] = @benchmarkable shift(
     $QUAD, $SHIFT_NORMAL, $SHIFT_AREA;
     workspace=$SHIFT_WORKSPACE, shift_workspace=$SHIFT_SCRATCH,
@@ -75,6 +93,27 @@ SUITE["reconstruct"]["workspace"] = @benchmarkable reconstruct!(
     workspace=$RECONSTRUCTION.workspace,
     shift_workspace=$RECONSTRUCTION.shifts,
 )
+SUITE["reconstruct"]["mof"] = @benchmarkable mof(
+    $MOF_INITIAL, $MOF_FRACTION, $MOF_MOMENT, $QUAD;
+    workspace=$CLIP_WORKSPACE, shift_workspace=$SHIFT_SCRATCH,
+)
+SUITE["reconstruct"]["pmof"] = @benchmarkable pmof(
+    $PMOF_INITIAL, $PMOF_FRACTION, $PARABOLA_MOMENT, $PARABOLA.curvature, $QUAD;
+    origin=$PARABOLA_ORIGIN, workspace=$PARABOLA_OUTPUT,
+) samples=1_000 evals=1
+SUITE["reconstruct"]["plvira"] = @benchmarkable plvira(
+    $PMOF_INITIAL, $STENCIL_FRACTIONS[5], $STENCIL_PARABOLA.curvature,
+    $RECONSTRUCTION.central, $STENCIL_FRACTIONS, $RECONSTRUCTION.cells;
+    cmeasures=$RECONSTRUCTION.cell_areas, origin=$PARABOLA_ORIGIN,
+    workspace=$STENCIL_WORKSPACE,
+) samples=1_000 evals=1
+SUITE["reconstruct"]["prost"] = @benchmarkable prost(
+    $PMOF_INITIAL, $STENCIL_FRACTIONS[5], $RECONSTRUCTION.central,
+    $STENCIL_FRACTIONS, $RECONSTRUCTION.cells;
+    cmeasures=$RECONSTRUCTION.cell_areas, origin=$PARABOLA_ORIGIN,
+    curvature_bounds=(-1u"m^-1", 1u"m^-1"), angle_samples=12,
+    curvature_samples=5, iterations=16, workspace=$STENCIL_WORKSPACE,
+) samples=1_000 evals=1
 
 if abspath(PROGRAM_FILE) == @__FILE__
     println("GeometricVOF 2D benchmark suite")

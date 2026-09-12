@@ -214,6 +214,61 @@ using Test
         @test GeometricVOF.shift_extrema(negative, GeometricVOF.SVector(1.0, 0.0)) == (-3u"m", -1u"m")
     end
 
+    @testset "parabolic clipping and reconstruction" begin
+        cell = Quadrangle((0, 0), (1, 0), (1, 1), (0, 1))
+        origin = Point(0u"m", 0u"m")
+
+        # y ≤ 0.4 + 0.2x²: area and first moments have elementary exact values.
+        curve = Parabola([0.0, 1.0], .4u"m", -.4u"m^-1", origin)
+        clipped = StaticParabolicNgon(cell, curve)
+        @test intersect!(clipped, cell, curve) === clipped
+        @test any(clipped.parabolic_faces[1:clipped.nr_verts])
+        area, first_moment = moments(clipped)
+        @test isapprox(area, (0.4 + 0.2 / 3)u"m^2"; rtol=100eps())
+        @test isapprox(first_moment, [0.25, 0.11066666666666667]u"m^3"; rtol=100eps())
+        @test moments(curve, cell) == moments(clipped)
+
+        # Positive curvature follows the complement path and still gets exact moments.
+        complement_curve = Parabola([0.0, 1.0], .6u"m", .4u"m^-1", origin)
+        complement_area, complement_moment = moments(complement_curve, cell)
+        @test isapprox(complement_area, (0.6 - 0.2 / 3)u"m^2"; rtol=100eps())
+        @test isapprox(complement_moment, [0.25, 0.144]u"m^3"; rtol=100eps())
+
+        # MOF is exact for a planar interface when supplied its first moment.
+        planar_truth = PlanarHS(GeometricVOF.angle_to_normal(.7), .55u"m")
+        planar_fraction = smeasure(planar_truth, cell) / smeasure(cell)
+        planar_moment = moments(planar_truth, cell)[2]
+        planar = mof(PlanarHS(GeometricVOF.angle_to_normal(1.8), 0u"m"),
+            planar_fraction, planar_moment, cell; samples=20, iterations=25)
+        @test isapprox(planar.𝛈, planar_truth.𝛈; atol=1e-5)
+        @test isapprox(moments(planar, cell)[2], planar_moment; rtol=2e-5)
+
+        # PMOF is exact when curvature is supplied.  PLVIRA recovers the same
+        # interface from a 3×3 volume-fraction stencil.
+        curved_fraction = area / smeasure(cell)
+        pmof_curve = pmof(PlanarHS([1.0, 0.0], 0u"m"), curved_fraction,
+            first_moment, curve.curvature, cell; origin=origin, samples=16, iterations=24)
+        @test isapprox(pmof_curve.𝛈, curve.𝛈; atol=1e-4)
+        @test isapprox(moments(pmof_curve, cell)[2], first_moment; rtol=2e-5)
+
+        mesh = CartesianGrid((3, 3), (-.5, -.5), (1 / 3, 1 / 3))
+        central = mesh[5]
+        stencil_curve = Parabola([0.0, 1.0], .1u"m", -.5u"m^-1", origin)
+        fractions = [smeasure(stencil_curve, c) / smeasure(c) for c in mesh]
+        plvira_curve = plvira(PlanarHS([1.0, 0.0], 0u"m"), fractions[5],
+            stencil_curve.curvature, central, fractions, view(mesh, 1:9);
+            origin=origin, samples=12, iterations=16)
+        @test isapprox(plvira_curve.𝛈, stencil_curve.𝛈; atol=5e-4)
+        @test isapprox(smeasure(plvira_curve, central) / smeasure(central), fractions[5]; rtol=100eps())
+
+        prost_curve = prost(PlanarHS([1.0, 0.0], 0u"m"), fractions[5], central,
+            fractions, view(mesh, 1:9); origin=origin,
+            curvature_bounds=(-1u"m^-1", 1u"m^-1"), angle_samples=8,
+            curvature_samples=3, iterations=8)
+        @test prost_curve isa Parabola
+        @test isapprox(smeasure(prost_curve, central) / smeasure(central), fractions[5]; rtol=100eps())
+    end
+
     @testset "lvira_derivative" begin
         # Test if the derivative of the LVIRA cost function is correct
         R = 0.3u"m"

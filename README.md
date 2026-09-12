@@ -41,10 +41,39 @@ area = smeasure(out)
 capacity when a workflow can create more intermediate vertices; operations
 throw an `ArgumentError` rather than writing past it.
 
+## Moment and parabolic reconstruction
+
+`moments(region)` returns its signed area and global first moment.  `mof`
+uses a volume fraction and first moment to reconstruct a planar interface:
+
+```julia
+liquid_moment = moments(interface, cell)[2]
+plane = mof(initial_plane, fraction, liquid_moment, cell)
+```
+
+`Parabola(normal, shift, curvature, origin)` represents the liquid side of
+`normal ⋅ (x - origin) - shift + curvature/2 * (tangent ⋅ (x - origin))^2 ≤ 0`.
+Parabolic clipping returns a `StaticParabolicNgon`; its marked arc faces make
+`smeasure` and `moments` exact without tessellating the curve. `pmof` and
+`plvira` take a supplied curvature, while `prost` searches a bounded curvature
+range along with the normal:
+
+```julia
+curve = pmof(initial_plane, fraction, liquid_moment, curvature, cell)
+curve = plvira(initial_plane, fraction, curvature, cell, neighbor_fractions, neighbor_cells)
+curve = prost(initial_plane, fraction, cell, neighbor_fractions, neighbor_cells;
+              curvature_bounds=(-8u"m^-1", 8u"m^-1"))
+```
+
+Reusable `StaticParabolicNgon(cell, curve)` workspaces remove allocations from
+repeated parabolic clipping and reconstruction calls. Its capacity defaults to
+twice the cell's vertex count plus two, which accommodates a quadratic edge
+intersection on every face.
+
 ## Performance checks
 
-The reproducible suite covers clipping, half-space and level-set area,
-area-to-shift inversion, and both reconstruction APIs:
+The reproducible suite covers planar and parabolic clipping, moments,
+area-to-shift inversion, and all reconstruction APIs:
 
 ```sh
 julia --project=. benchmark/benchmarks.jl
