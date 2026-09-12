@@ -3,14 +3,13 @@ module GeometricVOF
 using FastGaussQuadrature: gausslegendre
 using LinearAlgebra
 using Meshes
-using Optim
+import Meshes: normal
 using Roots
 using Unitful
 using StaticArrays
-using ForwardMethods
 using Printf
 
-export PlanarHS, LVIRA, StaticNgon
+export PlanarHS, StaticNgon, capacity
 export measure, intersect, intersect!, complement, shift, reconstruct, reconstruct!, distance, donating_region,
     smeasure, symmetric_difference, normal, normal!, tangent, tangent!, sorted_unique_approx, donating_region!
 

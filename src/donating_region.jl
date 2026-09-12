@@ -30,7 +30,8 @@ smeasure(p::Ngon) = smeasure(p.vertices)
 Signed measure of PolyArea `p`.
 """
 function smeasure(p::PolyArea)
-    M = 0u"m^2"
+    isempty(p.rings) && return 0u"m^2"
+    M = zero(smeasure(first(p.rings).vertices))
     for ring ∈ p.rings
         M += smeasure(ring.vertices)
     end
@@ -38,18 +39,14 @@ function smeasure(p::PolyArea)
 end
 
 function smeasure(verts::AbstractVector{<:Point{𝔼{2}}})
-    M = 0u"m^2"
+    isempty(verts) && return 0u"m^2"
+    M = zero(verts[1].coords.x * verts[1].coords.y)
     for vdx ∈ eachindex(verts)
         v1 = verts[vdx]
         v2 = verts[vdx==length(verts) ? 1 : vdx + 1]
         M += v1.coords.x * v2.coords.y - v1.coords.y * v2.coords.x
     end
     M /= 2
-end
-
-function smeasure(p::PlanarHS{2}, c::Ngon)
-    cp = c ∩ p
-    isnothing(cp) ? 0u"m^2" : smeasure(cp)
 end
 
 function donating_region(s::Segment{𝔼{2}}, u::Function, dt::Quantity;

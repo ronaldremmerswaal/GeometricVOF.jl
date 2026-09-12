@@ -179,6 +179,41 @@ using Test
         end
     end
 
+    @testset "stable 2D API" begin
+        square = Quadrangle((0, 0), (1, 0), (1, 1), (0, 1))
+        plane = PlanarHS([1, 0], .5u"m")
+
+        # Normals are immutable/static even when callers provide a Vector.
+        @test plane.𝛈 isa GeometricVOF.SVector{2, Int}
+        @test GeometricVOF.normal(plane) === plane.𝛈
+
+        # The convenience and reusable-workspace paths agree.
+        workspace = StaticNgon(square)
+        clipped = intersect!(workspace, square, plane)
+        @test clipped === workspace
+        @test smeasure(plane, square) == smeasure(workspace)
+        @test capacity(workspace) ≥ 5
+        @test_throws ArgumentError intersect!(StaticNgon(square, 4), square, plane)
+
+        # Shift inversion respects the coordinate unit rather than assuming metres.
+        cm_square = Quadrangle((0u"cm", 0u"cm"), (100u"cm", 0u"cm"),
+            (100u"cm", 100u"cm"), (0u"cm", 100u"cm"))
+        cm_plane = PlanarHS(GeometricVOF.SVector(1.0, 0.0), 50u"cm")
+        @test smeasure(cm_plane, cm_square) == 5000u"cm^2"
+        @test shift(cm_square, GeometricVOF.SVector(1.0, 0.0), 5000u"cm^2") == 50u"cm"
+
+        # The default scratch sizes scale with the input polygon.
+        nverts = 40
+        large = Ngon([(cos(θ), sin(θ)) for θ in range(0, 2π; length=nverts + 1)[1:end-1]]...)
+        large_plane = PlanarHS(GeometricVOF.SVector(cos(.4), sin(.4)), 0u"m")
+        target = .37smeasure(large)
+        computed = shift(large, large_plane.𝛈, target)
+        @test isapprox(smeasure(PlanarHS(large_plane.𝛈, computed), large), target; rtol=1e-12)
+
+        negative = Quadrangle((-3, -2), (-1, -2), (-1, -1), (-3, -1))
+        @test GeometricVOF.shift_extrema(negative, GeometricVOF.SVector(1.0, 0.0)) == (-3u"m", -1u"m")
+    end
+
     @testset "lvira_derivative" begin
         # Test if the derivative of the LVIRA cost function is correct
         R = 0.3u"m"
@@ -322,7 +357,7 @@ using Test
 
         # Trivial case
         s = Segment((0, 0), (0, 1))
-        u(x, y) = U * [1., 0.]
+        u = (x, y) -> U * [1., 0.]
         dr = donating_region(s, u, dt)
         @test dr == Quadrangle((0, 0), (0, 1), (-dt / T, 1), (-dt / T, 0))
 
@@ -340,7 +375,7 @@ using Test
 
         # Slightly less trivial case
         s = Segment((0, 0), (0, 1))
-        u(x, y) = U * [1., 1.]
+        u = (x, y) -> U * [1., 1.]
         dr = donating_region(s, u, dt)
         @test dr == Quadrangle((0, 0), (0, 1), (-dt / T, 1 - dt / T), (-dt / T, -dt / T))
 
@@ -356,7 +391,7 @@ using Test
         @test smeasure(dr) == α_ref
 
         # Nontrivial case
-        u(x, y) = U * [-.1 + sin(x/L) * cos(3y/L), sin((x + y) / L)]
+        u = (x, y) -> U * [-.1 + sin(x/L) * cos(3y/L), sin((x + y) / L)]
         s = Segment((0, 0), (.3, .2))
         dr = donating_region(s, u, dt)
         @test isa(dr, Quadrangle)
@@ -367,7 +402,7 @@ using Test
 
         # Trivial, but opposite sign
         s = Segment((0, 0), (0, 1))
-        u(x, y) = U * [-1., 0.]
+        u = (x, y) -> U * [-1., 0.]
 
         # Fix the reference volume (but no adjustment needed)
         α_ref = -.1L^2
@@ -383,7 +418,7 @@ using Test
 
         # Self-intersection case
         s = Segment((0, 0), (0, 1))
-        u(x, y) = U * [y/L-0.5, 0.]
+        u = (x, y) -> U * [y/L-0.5, 0.]
         dr = donating_region(s, u, dt)
         @test smeasure(dr) == 0L^2
 
