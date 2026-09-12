@@ -2,8 +2,8 @@
     StaticNgon(point_type[, capacity=32])
     StaticNgon(polygon[, capacity])
 
-Fixed-capacity mutable polygon used by the allocation-free `intersect!`,
-`shift`, and `reconstruct!` paths. `capacity` is the number of vertices that
+Fixed-capacity mutable polygon used by allocation-free `intersect!`, `shift`,
+and reconstruction workspace paths. `capacity` is the number of vertices that
 may be written; choose it large enough for every intermediate polygon.
 """
 mutable struct StaticNgon{N, P}

@@ -180,6 +180,10 @@ using Test
     end
 
     @testset "stable 2D API" begin
+        @test isdefined(GeometricVOF, :lvira)
+        @test !isdefined(GeometricVOF, :reconstruct)
+        @test !isdefined(GeometricVOF, Symbol("reconstruct!"))
+
         square = Quadrangle((0, 0), (1, 0), (1, 1), (0, 1))
         plane = PlanarHS([1, 0], .5u"m")
 
@@ -366,7 +370,7 @@ using Test
 
     end
 
-    @testset "reconstruction" begin
+    @testset "lvira" begin
         # Test if linear interface is reconstructed exactly
         mesh = CartesianGrid((3, 3), (-.5, -.5), (1/3, 1/3))
 
@@ -380,7 +384,7 @@ using Test
                 # Initialize reference volumes
                 αs = [smeasure(p_ref, c) / smeasure(c) for c ∈ mesh]
                 p0 = PlanarHS(GeometricVOF.angle_to_normal(θ + 0.7), 0u"m")
-                p_recon = reconstruct(p0, αs[5], mesh[5], αs, view(mesh, 1:9), xatol=1E-12)
+                p_recon = lvira(p0, αs[5], mesh[5], αs, view(mesh, 1:9), xatol=1E-12)
 
                 @test isapprox(p_recon.shift, p_ref.shift, atol=1e-10u"m")
                 @test isapprox(p_recon.𝛈, p_ref.𝛈, atol=1e-10)
@@ -407,7 +411,7 @@ using Test
                 xc = centroid(c)
                 θ0 = atan(xc.coords.y, xc.coords.x) + .1
                 p0 = PlanarHS(GeometricVOF.angle_to_normal(θ0), 0u"m")
-                p_recon = reconstruct(p0, αs[i, j], c, view(αs, i-1:i+1, j-1:j+1), view(mesh, inds[i-1:i+1, j-1:j+1][:]))
+                p_recon = lvira(p0, αs[i, j], c, view(αs, i-1:i+1, j-1:j+1), view(mesh, inds[i-1:i+1, j-1:j+1][:]))
 
                 sd_err += symmetric_difference(Φ, p_recon, c)
             end
@@ -418,48 +422,6 @@ using Test
         rates = log2.(sd_errs[1 : end-1] ./ sd_errs[2 : end])
         # println("Rates: ", rates)
         @test all(rates .> 1.9)
-    end
-
-    @testset "reconstruct!" begin
-        # Test that reconstruct! on StaticNgon matches reconstruct on Ngon for a linear interface
-        mesh = CartesianGrid((3, 3), (-.5, -.5), (1/3, 1/3))
-
-        M = 10
-        for θ ∈ 2π*(0:M-1)/M
-            𝛈 = GeometricVOF.SVector{2}(cos(θ), sin(θ))
-            shift_min, shift_max = GeometricVOF.shift_extrema(mesh[5], 𝛈)
-            for shift_ref ∈ range(.9shift_min, .9shift_max, length=M)
-                p_ref = PlanarHS(𝛈, shift_ref)
-
-                αs = [smeasure(p_ref, c) / smeasure(c) for c ∈ mesh]
-                p0 = PlanarHS(GeometricVOF.angle_to_normal(θ + 0.7), 0u"m")
-
-                # Reference: reconstruct with Ngon
-                p_recon = reconstruct(p0, αs[5], mesh[5], αs, view(mesh, 1:9), xatol=1E-12)
-                ref_liquid = intersect(mesh[5], p_recon)
-
-                # Build StaticNgon central + neighbours
-                c_central = StaticNgon(mesh[5])
-                GeometricVOF.copy!(c_central, mesh[5])
-                cs_static = [let s = StaticNgon(mesh[i]); GeometricVOF.copy!(s, mesh[i]); s end for i ∈ 1:9]
-                cmeasures = [smeasure(mesh[i]) for i ∈ 1:9]
-
-                out = StaticNgon(mesh[5])
-                result = reconstruct!(out, p0, αs[5], c_central, αs, cs_static, cmeasures, xatol=1E-12)
-
-                # reconstruct! should return out and not modify c_central
-                @test result === out
-
-                # c_central should be unchanged
-                for vdx ∈ 1:c_central.nr_verts
-                    @test c_central.vertices[vdx] == mesh[5].vertices[vdx]
-                end
-
-                if !isnothing(ref_liquid)
-                    @test isapprox(smeasure(out), smeasure(ref_liquid), atol=1e-10u"m^2")
-                end
-            end
-        end
     end
 
     @testset "donating_region" begin

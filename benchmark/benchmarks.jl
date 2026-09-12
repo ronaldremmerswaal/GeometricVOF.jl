@@ -1,9 +1,8 @@
 # Reproducible microbenchmarks for the public 2D VOF operations. Run from the
 # repository root with `julia --project=. benchmark/benchmarks.jl`. The fixtures
-# deliberately use a non-axis-aligned interface and include both the allocation-
-# free workspace API and its allocating convenience counterpart. This makes
-# regressions in the clipping/reconstruction hot path visible while keeping setup
-# out of the measurements.
+# deliberately use a non-axis-aligned interface and reusable workspaces. This
+# makes regressions in the clipping/reconstruction hot path visible while keeping
+# setup out of the measurements.
 using BenchmarkTools
 using GeometricVOF
 using Meshes
@@ -20,19 +19,11 @@ function reconstruction_fixture()
     central = mesh[central_index]
     initial = PlanarHS(SVector(cos(1.2), sin(1.2)), 0u"m")
     cells = view(mesh, 1:9)
-    static_central = StaticNgon(central)
-    GeometricVOF.copy!(static_central, central)
-    static_cells = [let polygon = StaticNgon(cell)
-        GeometricVOF.copy!(polygon, cell)
-        polygon
-    end for cell in cells]
     cell_areas = smeasure.(cells)
-    output = StaticNgon(central)
     workspace = StaticNgon(central)
     shifts = MVector{32, Float64}(undef)
 
-    return (; mesh, central, cells, fractions, initial, static_central,
-        static_cells, cell_areas, output, workspace, shifts)
+    return (; mesh, central, cells, fractions, initial, cell_areas, workspace, shifts)
 end
 
 const QUAD = Quadrangle((-0.1, -0.1), (0.9, -0.1), (0.9, 0.9), (-0.1, 0.9))
@@ -73,7 +64,7 @@ SUITE["shift"]["workspace"] = @benchmarkable shift(
     $QUAD, $SHIFT_NORMAL, $SHIFT_AREA;
     workspace=$SHIFT_WORKSPACE, shift_workspace=$SHIFT_SCRATCH,
 )
-SUITE["reconstruct"]["convenience"] = @benchmarkable reconstruct(
+SUITE["reconstruction"]["lvira"] = @benchmarkable lvira(
     $RECONSTRUCTION.initial,
     $RECONSTRUCTION.fractions[5],
     $RECONSTRUCTION.central,
@@ -82,32 +73,21 @@ SUITE["reconstruct"]["convenience"] = @benchmarkable reconstruct(
     workspace=$RECONSTRUCTION.workspace,
     shift_workspace=$RECONSTRUCTION.shifts,
 )
-SUITE["reconstruct"]["workspace"] = @benchmarkable reconstruct!(
-    $RECONSTRUCTION.output,
-    $RECONSTRUCTION.initial,
-    $RECONSTRUCTION.fractions[5],
-    $RECONSTRUCTION.static_central,
-    $RECONSTRUCTION.fractions,
-    $RECONSTRUCTION.static_cells,
-    $RECONSTRUCTION.cell_areas;
-    workspace=$RECONSTRUCTION.workspace,
-    shift_workspace=$RECONSTRUCTION.shifts,
-)
-SUITE["reconstruct"]["mof"] = @benchmarkable mof(
+SUITE["reconstruction"]["mof"] = @benchmarkable mof(
     $MOF_INITIAL, $MOF_FRACTION, $MOF_MOMENT, $QUAD;
     workspace=$CLIP_WORKSPACE, shift_workspace=$SHIFT_SCRATCH,
 )
-SUITE["reconstruct"]["pmof"] = @benchmarkable pmof(
+SUITE["reconstruction"]["pmof"] = @benchmarkable pmof(
     $PMOF_INITIAL, $PMOF_FRACTION, $PARABOLA_MOMENT, $PARABOLA.curvature, $QUAD;
     origin=$PARABOLA_ORIGIN, workspace=$PARABOLA_OUTPUT,
 ) samples=1_000 evals=1
-SUITE["reconstruct"]["plvira"] = @benchmarkable plvira(
+SUITE["reconstruction"]["plvira"] = @benchmarkable plvira(
     $PMOF_INITIAL, $STENCIL_FRACTIONS[5], $STENCIL_PARABOLA.curvature,
     $RECONSTRUCTION.central, $STENCIL_FRACTIONS, $RECONSTRUCTION.cells;
     cmeasures=$RECONSTRUCTION.cell_areas, origin=$PARABOLA_ORIGIN,
     workspace=$STENCIL_WORKSPACE,
 ) samples=1_000 evals=1
-SUITE["reconstruct"]["prost"] = @benchmarkable prost(
+SUITE["reconstruction"]["prost"] = @benchmarkable prost(
     $PMOF_INITIAL, $STENCIL_FRACTIONS[5], $RECONSTRUCTION.central,
     $STENCIL_FRACTIONS, $RECONSTRUCTION.cells;
     cmeasures=$RECONSTRUCTION.cell_areas, origin=$PARABOLA_ORIGIN,
