@@ -111,8 +111,8 @@ SUITE["reconstruct"]["prost"] = @benchmarkable prost(
     $PMOF_INITIAL, $STENCIL_FRACTIONS[5], $RECONSTRUCTION.central,
     $STENCIL_FRACTIONS, $RECONSTRUCTION.cells;
     cmeasures=$RECONSTRUCTION.cell_areas, origin=$PARABOLA_ORIGIN,
-    curvature_bounds=(-1u"m^-1", 1u"m^-1"), angle_samples=12,
-    curvature_samples=5, iterations=16, workspace=$STENCIL_WORKSPACE,
+    curvature_bounds=(-1u"m^-1", 1u"m^-1"), maxiters=100,
+    workspace=$STENCIL_WORKSPACE,
 ) samples=1_000 evals=1
 
 if abspath(PROGRAM_FILE) == @__FILE__

@@ -190,11 +190,20 @@ function _edge_roots(p::Parabola, v1::Point, v2::Point)
             nroots = 1
         end
     else
-        discriminant = B^2 - 4A*C
-        if discriminant ≥ zero(discriminant)
-            root_discriminant = sqrt(discriminant)
-            root1 = ustrip((-B - root_discriminant) / (2A))
-            root2 = ustrip((-B + root_discriminant) / (2A))
+        # Normalize before solving: the stable q-form avoids cancellation for
+        # an interface almost parallel to an input edge.
+        b = ustrip(B / A)
+        c = ustrip(C / A)
+        discriminant = b^2 - 4c
+        if discriminant ≥ 0
+            q = -(b + copysign(sqrt(discriminant), b)) / 2
+            if q == 0
+                root1 = -b / 2
+                root2 = root1
+            else
+                root1 = q
+                root2 = c / q
+            end
             nroots = 2
         end
     end
