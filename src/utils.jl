@@ -59,21 +59,11 @@ julia> moments(poly)
 ```
 """
 function moments(c::Ngon)
-    mom0 = 0u"m^2"
-    mom1 = [0, 0]u"m^3"
     verts = vertices(c)
-
-    for vdx ∈ eachindex(verts)
-        v1 = verts[vdx]
-        v2 = verts[vdx==length(verts) ? 1 : vdx + 1]
-        mom0_tmp = v1.coords.x * v2.coords.y - v1.coords.y * v2.coords.x
-
-        mom0 += mom0_tmp
-        mom1[1] += mom0_tmp * (v1.coords.x + v2.coords.x)
-        mom1[2] += mom0_tmp * (v1.coords.y + v2.coords.y)
-    end
-
-    return mom0 / 2, mom1 / 6
+    fallback = (zero(verts[1].coords.x * verts[1].coords.y),
+        SVector(zero(verts[1].coords.x^2 * verts[1].coords.y),
+            zero(verts[1].coords.x * verts[1].coords.y^2)))
+    return _polygon_moments(verts, length(verts), fallback)
 end
 
 angle_to_normal(θ::Number) = SVector{2}(cos(θ), sin(θ))
