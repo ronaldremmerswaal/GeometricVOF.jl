@@ -56,7 +56,7 @@ plane = mof(initial_plane, fraction, liquid_moment, cell)
 Parabolic clipping returns a `StaticParabolicNgon`; its marked arc faces make
 `smeasure` and `moments` exact without tessellating the curve. `pmof` and
 `plvira` take a supplied curvature, while `prost` searches a bounded curvature
-range along with the normal:
+range along with the normal using Optim.jl:
 
 ```julia
 curve = pmof(initial_plane, fraction, liquid_moment, curvature, cell)
@@ -66,9 +66,9 @@ curve = prost(initial_plane, fraction, cell, neighbor_fractions, neighbor_cells;
 ```
 
 Reusable `StaticParabolicNgon(cell, curve)` workspaces remove allocations from
-repeated parabolic clipping and reconstruction calls. Its capacity defaults to
-twice the cell's vertex count plus two, which accommodates a quadratic edge
-intersection on every face.
+repeated parabolic clipping and moment calls, and provide reconstruction scratch
+storage. Its capacity defaults to twice the cell's vertex count plus two, which
+accommodates a quadratic edge intersection on every face.
 
 ## Performance checks
 

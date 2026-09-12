@@ -5,6 +5,7 @@ using LinearAlgebra
 using Meshes
 import Meshes: normal
 using Roots
+using Optim
 using Unitful
 using StaticArrays
 using Printf

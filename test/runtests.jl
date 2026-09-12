@@ -234,12 +234,40 @@ using Test
         @test isapprox(complement_area, (0.6 - 0.2 / 3)u"m^2"; rtol=100eps())
         @test isapprox(complement_moment, [0.25, 0.144]u"m^3"; rtol=100eps())
 
+        # Analytic constrained-volume derivatives agree with centered finite
+        # differences for both planar and parabolic first moments.
+        derivative_angle = .42
+        derivative_volume = .37smeasure(cell)
+        derivative_plane = PlanarHS(derivative_angle, derivative_volume, cell)
+        plane_workspace = StaticNgon(cell)
+        intersect!(plane_workspace, cell, derivative_plane)
+        plane_derivative = GeometricVOF._planar_first_moment_angle_derivative(
+            plane_workspace, derivative_plane)
+        δθ = 1e-6
+        plane_fd = (moments(PlanarHS(derivative_angle + δθ, derivative_volume, cell), cell)[2] -
+            moments(PlanarHS(derivative_angle - δθ, derivative_volume, cell), cell)[2]) / (2δθ)
+        @test isapprox(plane_derivative, plane_fd; rtol=2e-6)
+
+        parabolic_workspace = StaticParabolicNgon(cell, curve)
+        derivative_curve = GeometricVOF._parabola_with_area(derivative_angle,
+            curve.curvature, derivative_volume, cell, origin; workspace=parabolic_workspace)
+        intersect!(parabolic_workspace, cell, derivative_curve)
+        dshift_angle, _ = GeometricVOF._parabolic_shift_derivatives(parabolic_workspace)
+        parabolic_derivative = GeometricVOF._parabolic_first_moment_angle_derivative(
+            parabolic_workspace, dshift_angle)
+        curve_plus = GeometricVOF._parabola_with_area(derivative_angle + δθ,
+            curve.curvature, derivative_volume, cell, origin; workspace=parabolic_workspace)
+        curve_minus = GeometricVOF._parabola_with_area(derivative_angle - δθ,
+            curve.curvature, derivative_volume, cell, origin; workspace=parabolic_workspace)
+        parabolic_fd = (moments(curve_plus, cell)[2] - moments(curve_minus, cell)[2]) / (2δθ)
+        @test isapprox(parabolic_derivative, parabolic_fd; rtol=2e-5)
+
         # MOF is exact for a planar interface when supplied its first moment.
         planar_truth = PlanarHS(GeometricVOF.angle_to_normal(.7), .55u"m")
         planar_fraction = smeasure(planar_truth, cell) / smeasure(cell)
         planar_moment = moments(planar_truth, cell)[2]
         planar = mof(PlanarHS(GeometricVOF.angle_to_normal(1.8), 0u"m"),
-            planar_fraction, planar_moment, cell; samples=20, iterations=25)
+            planar_fraction, planar_moment, cell)
         @test isapprox(planar.𝛈, planar_truth.𝛈; atol=1e-5)
         @test isapprox(moments(planar, cell)[2], planar_moment; rtol=2e-5)
 
@@ -247,7 +275,7 @@ using Test
         # interface from a 3×3 volume-fraction stencil.
         curved_fraction = area / smeasure(cell)
         pmof_curve = pmof(PlanarHS([1.0, 0.0], 0u"m"), curved_fraction,
-            first_moment, curve.curvature, cell; origin=origin, samples=16, iterations=24)
+            first_moment, curve.curvature, cell; origin=origin)
         @test isapprox(pmof_curve.𝛈, curve.𝛈; atol=1e-4)
         @test isapprox(moments(pmof_curve, cell)[2], first_moment; rtol=2e-5)
 
@@ -255,16 +283,47 @@ using Test
         central = mesh[5]
         stencil_curve = Parabola([0.0, 1.0], .1u"m", -.5u"m^-1", origin)
         fractions = [smeasure(stencil_curve, c) / smeasure(c) for c in mesh]
+        stencil_areas = smeasure.(view(mesh, 1:9))
+
+        # PLVIRA and PROST share this analytic angle/curvature gradient.
+        gradient_angle = .73
+        gradient_curvature = -.31u"m^-1"
+        gradient_volume = fractions[5] * smeasure(central)
+        gradient_curve = GeometricVOF._parabola_with_area(gradient_angle,
+            gradient_curvature, gradient_volume, central, origin)
+        gradient_workspace = StaticParabolicNgon(central, gradient_curve)
+        _, analytic_angle, analytic_curvature = GeometricVOF._parabolic_lvira_costfun(
+            gradient_curve, fractions, view(mesh, 1:9), stencil_areas, central,
+            gradient_workspace)
+        angle_plus = GeometricVOF._parabola_with_area(gradient_angle + δθ,
+            gradient_curvature, gradient_volume, central, origin; workspace=gradient_workspace)
+        angle_minus = GeometricVOF._parabola_with_area(gradient_angle - δθ,
+            gradient_curvature, gradient_volume, central, origin; workspace=gradient_workspace)
+        finite_angle = (GeometricVOF._parabolic_lvira_costfun(angle_plus, fractions,
+            view(mesh, 1:9), stencil_areas, central, gradient_workspace)[1] -
+            GeometricVOF._parabolic_lvira_costfun(angle_minus, fractions,
+                view(mesh, 1:9), stencil_areas, central, gradient_workspace)[1]) / (2δθ)
+        δκ = 1e-6u"m^-1"
+        curvature_plus = GeometricVOF._parabola_with_area(gradient_angle,
+            gradient_curvature + δκ, gradient_volume, central, origin; workspace=gradient_workspace)
+        curvature_minus = GeometricVOF._parabola_with_area(gradient_angle,
+            gradient_curvature - δκ, gradient_volume, central, origin; workspace=gradient_workspace)
+        finite_curvature = (GeometricVOF._parabolic_lvira_costfun(curvature_plus, fractions,
+            view(mesh, 1:9), stencil_areas, central, gradient_workspace)[1] -
+            GeometricVOF._parabolic_lvira_costfun(curvature_minus, fractions,
+                view(mesh, 1:9), stencil_areas, central, gradient_workspace)[1]) / (2δκ)
+        @test isapprox(analytic_angle, finite_angle; rtol=2e-6)
+        @test isapprox(analytic_curvature, finite_curvature; rtol=2e-6)
+
         plvira_curve = plvira(PlanarHS([1.0, 0.0], 0u"m"), fractions[5],
             stencil_curve.curvature, central, fractions, view(mesh, 1:9);
-            origin=origin, samples=12, iterations=16)
+            cmeasures=stencil_areas, origin=origin)
         @test isapprox(plvira_curve.𝛈, stencil_curve.𝛈; atol=5e-4)
         @test isapprox(smeasure(plvira_curve, central) / smeasure(central), fractions[5]; rtol=100eps())
 
         prost_curve = prost(PlanarHS([1.0, 0.0], 0u"m"), fractions[5], central,
-            fractions, view(mesh, 1:9); origin=origin,
-            curvature_bounds=(-1u"m^-1", 1u"m^-1"), angle_samples=8,
-            curvature_samples=3, iterations=8)
+            fractions, view(mesh, 1:9); cmeasures=stencil_areas, origin=origin,
+            curvature_bounds=(-1u"m^-1", 1u"m^-1"), maxiters=50)
         @test prost_curve isa Parabola
         @test isapprox(smeasure(prost_curve, central) / smeasure(central), fractions[5]; rtol=100eps())
     end

@@ -124,41 +124,77 @@ end
     return nothing
 end
 
-@inline _moment_cost(reference, reconstructed) = sum(abs2, reference - reconstructed)
-
-"""Minimize a scalar periodic objective without relying on a derivative."""
-function _periodic_minimum(f, θ0::Real; samples::Integer=32, iterations::Integer=36)
-    samples ≥ 3 || throw(ArgumentError("at least three angular samples are required"))
-    Δθ = 2π / samples
-    θbest = θ0 - π
-    fbest = f(θbest)
-    for index in 1:samples-1
-        θ = θ0 - π + index * Δθ
-        value = f(θ)
-        if value < fbest
-            θbest, fbest = θ, value
-        end
+function _parabolic_monomials(poly::StaticParabolicNgon)
+    p = poly.curve
+    τ0 = zero(p.shift)
+    i0 = zero(τ0)
+    i1 = zero(τ0^2)
+    i2 = zero(τ0^3)
+    i3 = zero(τ0^4)
+    i4 = zero(τ0^5)
+    i5 = zero(τ0^6)
+    for index in 1:poly.nr_verts
+        poly.parabolic_faces[index] || continue
+        v1 = poly.vertices[index]
+        v2 = poly.vertices[mod1(index + 1, poly.nr_verts)]
+        τ1 = -p.𝛈[2] * (v1.coords.x - p.origin.coords.x) + p.𝛈[1] * (v1.coords.y - p.origin.coords.y)
+        τ2 = -p.𝛈[2] * (v2.coords.x - p.origin.coords.x) + p.𝛈[1] * (v2.coords.y - p.origin.coords.y)
+        i0 += τ2 - τ1
+        i1 += (τ2^2 - τ1^2) / 2
+        i2 += (τ2^3 - τ1^3) / 3
+        i3 += (τ2^4 - τ1^4) / 4
+        i4 += (τ2^5 - τ1^5) / 5
+        i5 += (τ2^6 - τ1^6) / 6
     end
-    return _golden_minimum(f, θbest - Δθ, θbest + Δθ; iterations=iterations)
+    return i0, i1, i2, i3, i4, i5
 end
 
-function _golden_minimum(f, left, right; iterations::Integer=36)
-    ratio = (sqrt(5) - 1) / 2
-    x1 = right - ratio * (right - left)
-    x2 = left + ratio * (right - left)
-    f1, f2 = f(x1), f(x2)
-    for _ in 1:iterations
-        if f1 ≤ f2
-            right, x2, f2 = x2, x1, f1
-            x1 = right - ratio * (right - left)
-            f1 = f(x1)
-        else
-            left, x1, f1 = x1, x2, f2
-            x2 = left + ratio * (right - left)
-            f2 = f(x2)
-        end
-    end
-    return (left + right) / 2
+function _parabolic_shift_derivatives(poly::StaticParabolicNgon)
+    i0, i1, i2, i3, _, _ = _parabolic_monomials(poly)
+    p = poly.curve
+    i0 == zero(i0) && return zero(p.shift), zero(p.shift^2)
+    raw_angle = (i1 - i1 * p.shift * p.curvature + i3 * p.curvature^2 / 2) / i0
+    curvature = i2 / (2i0)
+    return poly.complement ? -raw_angle : raw_angle, curvature
+end
+
+function _parabolic_volume_derivatives(poly::StaticParabolicNgon, dshift_angle, dshift_curvature)
+    i0, i1, i2, i3, _, _ = _parabolic_monomials(poly)
+    p = poly.curve
+    dshift = poly.complement ? -dshift_angle : dshift_angle
+    raw_angle = i0 * dshift - i1 + i1 * p.shift * p.curvature - i3 * p.curvature^2 / 2
+    curvature = i0 * dshift_curvature - i2 / 2
+    return poly.complement ? -raw_angle : raw_angle, curvature
+end
+
+function _parabolic_first_moment_angle_derivative(poly::StaticParabolicNgon, dshift_angle)
+    i0, i1, i2, i3, i4, i5 = _parabolic_monomials(poly)
+    p = poly.curve
+    dshift = poly.complement ? -dshift_angle : dshift_angle
+    dη = p.shift * dshift * i0 - p.shift * i1 + i3 * p.curvature / 2 -
+        i2 * dshift * p.curvature / 2 + p.curvature *
+        (i1 * p.shift^2 + i5 * p.curvature^2 / 4 - p.shift * p.curvature * i3)
+    dτ = dshift * i1 - i2 + p.curvature * p.shift * i2 - i4 * p.curvature^2 / 2
+    derivative = SVector(p.𝛈[1] * dη - p.𝛈[2] * dτ,
+        p.𝛈[2] * dη + p.𝛈[1] * dτ)
+    return poly.complement ? -derivative : derivative
+end
+
+function _planar_first_moment_angle_derivative(poly::StaticNgon, p::PlanarHS)
+    poly.interface_index == 0 && return SVector(zero(p.shift^3), zero(p.shift^3))
+    v1 = poly.vertices[poly.interface_index]
+    v2 = poly.vertices[mod1(poly.interface_index + 1, poly.nr_verts)]
+    τ1 = -p.𝛈[2] * v1.coords.x + p.𝛈[1] * v1.coords.y
+    τ2 = -p.𝛈[2] * v2.coords.x + p.𝛈[1] * v2.coords.y
+    i0 = τ2 - τ1
+    i0 == zero(i0) && return SVector(zero(p.shift^3), zero(p.shift^3))
+    i1 = (τ2^2 - τ1^2) / 2
+    i2 = (τ2^3 - τ1^3) / 3
+    dshift = i1 / i0
+    dη = p.shift * dshift * i0 - p.shift * i1
+    dτ = dshift * i1 - i2
+    return SVector(p.𝛈[1] * dη - p.𝛈[2] * dτ,
+        p.𝛈[2] * dη + p.𝛈[1] * dτ)
 end
 
 """
@@ -172,17 +208,25 @@ Euclidean first-moment mismatch.
 function mof(p0::PlanarHS{2}, α::Real, first_moment, c::Ngon;
     workspace::StaticNgon=StaticNgon(c),
     shift_workspace::AbstractVector{<:Real}=Vector{Float64}(undef, length(c.vertices)),
-    samples::Integer=32,
-    iterations::Integer=36,
+    xatol::Real=√eps(Float64),
+    maxiters::Integer=25,
+    step_max::Real=.5,
+    verbose::Bool=false,
 )
     _validate_fraction(α)
-    target_area = α * smeasure(c)
-    cost(θ) = begin
+    cell_area = abs(smeasure(c))
+    target_area = α * cell_area
+    moment_scale = cell_area * sqrt(cell_area)
+    cost_and_derivative(θ) = begin
         p = PlanarHS(θ, target_area, c; workspace=workspace, shift_workspace=shift_workspace)
-        _, reconstructed_moment = moments(p, c; workspace=workspace)
-        _moment_cost(first_moment, reconstructed_moment)
+        intersect!(workspace, c, p)
+        _, reconstructed_moment = moments(workspace)
+        difference = (reconstructed_moment - first_moment) / moment_scale
+        derivative = _planar_first_moment_angle_derivative(workspace, p) / moment_scale
+        return sum(abs2, difference), 2 * dot(difference, derivative)
     end
-    θ = _periodic_minimum(cost, normal_to_angle(p0.𝛈); samples=samples, iterations=iterations)
+    θ = brent_min(cost_and_derivative, normal_to_angle(p0.𝛈);
+        xatol=xatol, maxiters=maxiters, step_max=step_max, verbose=verbose)
     return PlanarHS(θ, target_area, c; workspace=workspace, shift_workspace=shift_workspace)
 end
 
@@ -205,31 +249,49 @@ coordinate frame and defaults to `centroid(cell)`.
 function pmof(p0::PlanarHS{2}, α::Real, first_moment, curvature::Quantity, c::Ngon;
     origin::Point=centroid(c),
     workspace::Union{Nothing,StaticParabolicNgon}=nothing,
-    samples::Integer=32,
-    iterations::Integer=36,
+    xatol::Real=√eps(Float64),
+    maxiters::Integer=25,
+    step_max::Real=.5,
+    verbose::Bool=false,
 )
     _validate_fraction(α)
-    target_area = α * smeasure(c)
+    cell_area = abs(smeasure(c))
+    target_area = α * cell_area
+    moment_scale = cell_area * sqrt(cell_area)
     θ0 = normal_to_angle(p0.𝛈)
     seed = Parabola(angle_to_normal(θ0), zero(c.vertices[1].coords.x - origin.coords.x), curvature, origin)
     out = isnothing(workspace) ? _parabolic_workspace(c, seed) : workspace
-    cost(θ) = begin
+    cost_and_derivative(θ) = begin
         p = _parabola_with_area(θ, curvature, target_area, c, origin; workspace=out)
-        _, reconstructed_moment = moments(p, c; workspace=out)
-        _moment_cost(first_moment, reconstructed_moment)
+        intersect!(out, c, p)
+        _, reconstructed_moment = moments(out)
+        difference = (reconstructed_moment - first_moment) / moment_scale
+        dshift_angle, _ = _parabolic_shift_derivatives(out)
+        derivative = _parabolic_first_moment_angle_derivative(out, dshift_angle) / moment_scale
+        return sum(abs2, difference), 2 * dot(difference, derivative)
     end
-    θ = _periodic_minimum(cost, θ0; samples=samples, iterations=iterations)
+    θ = brent_min(cost_and_derivative, θ0;
+        xatol=xatol, maxiters=maxiters, step_max=step_max, verbose=verbose)
     return _parabola_with_area(θ, curvature, target_area, c, origin; workspace=out)
 end
 
-function _parabolic_lvira_cost(p::Parabola, fractions, cells, areas, workspace)
-    cost = zero(smeasure(p, cells[1]; workspace=workspace) / areas[1])
+function _parabolic_lvira_costfun(p::Parabola, fractions, cells, areas, central, workspace)
+    intersect!(workspace, central, p)
+    dshift_angle, dshift_curvature = _parabolic_shift_derivatives(workspace)
+    cost = zero(smeasure(workspace) / areas[1])
+    dangle = zero(cost)
+    dcurvature = zero(cost * central.vertices[1].coords.x)
     for (α, c, area) in zip(fractions, cells, areas)
-        error = smeasure(p, c; workspace=workspace) / area - α
+        intersect!(workspace, c, p)
+        error = smeasure(workspace) / area - α
         weight = 1 / (α * (1 - α) + 1e-2)
         cost += weight * error^2
+        dvolume_angle, dvolume_curvature = _parabolic_volume_derivatives(workspace,
+            dshift_angle, dshift_curvature)
+        dangle += 2 * weight * error * dvolume_angle / area
+        dcurvature += 2 * weight * error * dvolume_curvature / area
     end
-    return cost
+    return cost, dangle, dcurvature
 end
 
 """
@@ -245,8 +307,10 @@ function plvira(p0::PlanarHS{2}, α::Real, curvature::Quantity, c::Ngon,
     cmeasures::AbstractArray{<:Quantity}=smeasure.(cs),
     origin::Point=centroid(c),
     workspace::Union{Nothing,StaticParabolicNgon}=nothing,
-    samples::Integer=32,
-    iterations::Integer=36,
+    xatol::Real=√eps(Float64),
+    maxiters::Integer=25,
+    step_max::Real=.5,
+    verbose::Bool=false,
 )
     _validate_fraction(α)
     length(αs) == length(cs) == length(cmeasures) || throw(DimensionMismatch(
@@ -255,11 +319,13 @@ function plvira(p0::PlanarHS{2}, α::Real, curvature::Quantity, c::Ngon,
     θ0 = normal_to_angle(p0.𝛈)
     seed = Parabola(angle_to_normal(θ0), zero(c.vertices[1].coords.x - origin.coords.x), curvature, origin)
     out = isnothing(workspace) ? _parabolic_workspace(c, seed, cs) : workspace
-    cost(θ) = begin
+    cost_and_derivative(θ) = begin
         p = _parabola_with_area(θ, curvature, target_area, c, origin; workspace=out)
-        _parabolic_lvira_cost(p, αs, cs, cmeasures, out)
+        cost, derivative, _ = _parabolic_lvira_costfun(p, αs, cs, cmeasures, c, out)
+        return cost, derivative
     end
-    θ = _periodic_minimum(cost, θ0; samples=samples, iterations=iterations)
+    θ = brent_min(cost_and_derivative, θ0;
+        xatol=xatol, maxiters=maxiters, step_max=step_max, verbose=verbose)
     return _parabola_with_area(θ, curvature, target_area, c, origin; workspace=out)
 end
 
@@ -270,7 +336,8 @@ end
 Full quadratic (`Q²`) parabolic reconstruction.  PROST jointly searches the
 normal and curvature that minimize the LVIRA volume mismatch.  Supplying
 physical `curvature_bounds` is recommended when a stencil has more than one
-plausible parabolic fit.
+plausible parabolic fit. The coupled solve is performed by `Optim.jl`'s
+bounded L-BFGS implementation using the analytic cost gradient.
 """
 function prost(p0::PlanarHS{2}, α::Real, c::Ngon,
     αs::AbstractArray{<:Real}, cs::Union{SubDomain,AbstractArray{<:Ngon}};
@@ -278,9 +345,7 @@ function prost(p0::PlanarHS{2}, α::Real, c::Ngon,
     curvature_bounds=nothing,
     origin::Point=centroid(c),
     workspace::Union{Nothing,StaticParabolicNgon}=nothing,
-    angle_samples::Integer=24,
-    curvature_samples::Integer=9,
-    iterations::Integer=24,
+    maxiters::Integer=100,
 )
     _validate_fraction(α)
     length(αs) == length(cs) == length(cmeasures) || throw(DimensionMismatch(
@@ -290,30 +355,29 @@ function prost(p0::PlanarHS{2}, α::Real, c::Ngon,
     raw_κbounds = isnothing(curvature_bounds) ? (-8 / scale, 8 / scale) : curvature_bounds
     κbounds = (float(raw_κbounds[1]), float(raw_κbounds[2]))
     κbounds[1] < κbounds[2] || throw(ArgumentError("curvature_bounds must be increasing"))
-    θbest, κbest = normal_to_angle(p0.𝛈), zero(κbounds[1])
-    seed = Parabola(angle_to_normal(θbest), zero(c.vertices[1].coords.x - origin.coords.x), κbest, origin)
+    θ0, κ0 = normal_to_angle(p0.𝛈), zero(κbounds[1])
+    seed = Parabola(angle_to_normal(θ0), zero(c.vertices[1].coords.x - origin.coords.x), κ0, origin)
     out = isnothing(workspace) ? _parabolic_workspace(c, seed, cs) : workspace
-    function cost(θ, κ)
+    function cost_and_gradient(x)
+        θ, scaled_curvature = x
+        κ = scaled_curvature / scale
         p = _parabola_with_area(θ, κ, target_area, c, origin; workspace=out)
-        return _parabolic_lvira_cost(p, αs, cs, cmeasures, out)
+        cost, dangle, dcurvature = _parabolic_lvira_costfun(p, αs, cs, cmeasures, c, out)
+        return cost, dangle, dcurvature / scale
     end
-    best_cost = cost(θbest, κbest)
-    κgrid = range(κbounds[1], κbounds[2]; length=curvature_samples)
-    for κ in κgrid
-        θ = _periodic_minimum(θ -> cost(θ, κ), θbest;
-            samples=angle_samples, iterations=iterations)
-        value = cost(θ, κ)
-        if value < best_cost
-            θbest, κbest, best_cost = θ, κ, value
-        end
+    objective(x) = first(cost_and_gradient(x))
+    function gradient!(storage, x)
+        _, dangle, dcurvature = cost_and_gradient(x)
+        storage[1] = dangle
+        storage[2] = dcurvature
+        return storage
     end
-    # Coordinate refinement keeps the public API compact while providing a
-    # dependable full-Q² solve without derivatives of the clipping algorithm.
-    for _ in 1:3
-        θbest = _periodic_minimum(θ -> cost(θ, κbest), θbest;
-            samples=angle_samples, iterations=iterations)
-        κbest = _golden_minimum(κ -> cost(θbest, κ), κbounds[1], κbounds[2];
-            iterations=iterations)
-    end
-    return _parabola_with_area(θbest, κbest, target_area, c, origin; workspace=out)
+    lower = [θ0 - π, ustrip(κbounds[1] * scale)]
+    upper = [θ0 + π, ustrip(κbounds[2] * scale)]
+    initial = [θ0, clamp(0.0, lower[2], upper[2])]
+    result = Optim.optimize(objective, gradient!, lower, upper, initial,
+        Optim.Fminbox(Optim.LBFGS(linesearch=Optim.LineSearches.BackTracking())),
+        Optim.Options(iterations=maxiters))
+    θ, scaled_curvature = Optim.minimizer(result)
+    return _parabola_with_area(θ, scaled_curvature / scale, target_area, c, origin; workspace=out)
 end
